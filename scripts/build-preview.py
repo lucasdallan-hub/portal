@@ -63,3 +63,20 @@ with ZipFile(root.parent/'portal-nutri.zip','w',ZIP_DEFLATED) as archive:
     archive.writestr('portal-nutri.html',html)
     archive.writestr('COMO-ABRIR.txt','Extraia o ZIP. Abra portal-nutri.html diretamente no Chrome, Edge, Firefox ou Safari, fora da previa do aplicativo.\n\nAcessos ficticios:\nSuperadmin: lucasdallan / admin123\nNutricionista: admin / demo12345\nPaciente: paciente / demo12345\n\nJavaScript deve estar ativado. Demonstracao offline; nao use dados reais. Alteracoes sao descartadas ao recarregar.\n')
 print('ZIP criado:',root.parent/'portal-nutri.zip')
+
+# Direct demo entry. Real server authentication remains unchanged.
+start=html.index('async function initSession(){')
+end=html.index('async function api(',start)
+super_html=html[:start]+"async function initSession(){demoRole='superadmin';document.body.classList.add('authenticated');return demoUsers[0];}\n"+html[end:]
+super_html=super_html.replace('<body>', '<body class="authenticated">')
+(root.parent/'nutri-superadmin.html').write_text(super_html)
+
+# Keep a static panel visible when an HTML viewer does not execute scripts.
+import re
+shell=(root/'scripts/superadmin-shell.html').read_text()
+super_html=re.sub(r'(<body[^>]*>)[\s\S]*?(<script>)',lambda m:m.group(1)+shell+m.group(2),super_html,count=1)
+super_html=super_html.replace("route=location.hash.slice(1)||'dashboard';", "route=location.hash.slice(1)||'members';")
+(root.parent/'nutri-superadmin.html').write_text(super_html)
+(root.parent/'superadmin-direto.html').write_text(super_html)
+with ZipFile(root.parent/'portal-nutri.zip','a',ZIP_DEFLATED) as archive:
+    archive.writestr('superadmin.html',super_html)
