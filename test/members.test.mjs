@@ -23,8 +23,9 @@ test('autenticação, gestão, isolamento entre admins e acesso individual do pa
  assert.equal((await request('state','PUT',state,a.cookie)).status,200);
  const foreign=(await request('state','GET',null,b.cookie)).body;assert.equal(foreign.data.patients.length,0);foreign.data.patients=state.data.patients;assert.equal((await request('state','PUT',foreign,b.cookie)).status,403);
  assert.equal((await request('users','POST',{name:'Elevado',email:'e@example.test',password,role:'superadmin'},a.cookie)).status,403);
- assert.equal((await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},b.cookie)).status,400);
- const member=await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},a.cookie);assert.equal(member.status,201);
+ assert.equal((await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},b.cookie)).status,403);
+ assert.equal((await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},a.cookie)).status,403);
+ const member=await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},root.cookie);assert.equal(member.status,201);
  const p=await request('login','POST',{email:'p@example.test',password});const personal=await request('state','GET',null,p.cookie);assert.equal(personal.body.data.patients.length,1);assert.equal(personal.body.data.posts.length,1);assert.equal(personal.body.data.posts[0].id,'published');
  assert.equal((await request('state','PUT',personal.body,p.cookie)).status,403);assert.equal((await request('users','GET',null,p.cookie)).status,403);
  assert.equal((await request('state','PUT',state,a.cookie)).status,409);

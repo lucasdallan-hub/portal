@@ -14,10 +14,10 @@ O servidor escuta em `0.0.0.0:3000` (`PORT` altera a porta). A visualização é
 Abra o portal e crie o primeiro **superadmin**. Essa tela só existe enquanto não houver contas; não há senha padrão. Escolha uma senha de pelo menos 12 caracteres. Não publique uma instalação acessível a terceiros antes de concluir esse passo.
 
 - **Superadmin:** gerencia nutricionistas e acessos de pacientes; consulta todos os registros. Cria contas admin ou paciente, bloqueia e reativa acessos. A conta superadmin inicial não pode ser bloqueada pela gestão de membros.
-- **Admin (nutricionista):** gerencia apenas os próprios pacientes, consultas, conteúdos e stories; cria e bloqueia acessos de seus pacientes.
+- **Admin (nutricionista):** gerencia apenas os próprios pacientes, consultas, conteúdos e stories; consulta e bloqueia acessos de seus pacientes. A criação de usuários é exclusiva do superadmin.
 - **Usuário (paciente):** consulta somente sua ficha vinculada, plano, evolução, consultas e publicações da nutricionista responsável. Não acessa rascunhos, outras fichas ou gestão de membros.
 
-Para cadastrar um paciente: entre como nutricionista, cadastre a ficha em **Pacientes** e crie o acesso em **Área de membros**, selecionando a ficha. Cada ficha tem um único acesso de paciente. Admins novos começam com um espaço vazio. O superadmin pode criar fichas próprias; para atribuir um novo paciente a uma nutricionista, entre com a conta dessa nutricionista e cadastre-o nesse espaço.
+Para cadastrar um paciente: entre como nutricionista, cadastre a ficha em **Pacientes**. Depois, entre como **superadmin** e use **Área de membros → Criar usuário**, selecionando a ficha. Cada ficha tem um único acesso de paciente. Admins novos começam com um espaço vazio. O superadmin pode criar fichas próprias; para atribuir um novo paciente a uma nutricionista, entre com a conta dessa nutricionista e cadastre-o nesse espaço.
 
 Em **Minha conta**, todos podem alterar a própria senha ou sair. A senha inicial é definida pelo gestor e deve ser entregue por canal privado; não há envio de e-mail ou recuperação automática de senha nesta versão.
 
