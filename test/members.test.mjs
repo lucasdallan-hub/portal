@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdtemp,rm} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {createServer} from 'node:net';
+const password='Ficticia-somente-teste-2026';
+test('autenticação, gestão, isolamento entre admins e acesso individual do paciente',async()=>{
+ const directory=await mkdtemp(path.join(os.tmpdir(),'nutri-auth-'));const portServer=createServer();await new Promise(r=>portServer.listen(0,'127.0.0.1',r));const port=portServer.address().port;await new Promise(r=>portServer.close(r));
+ const child=spawn(process.execPath,['scripts/server.mjs'],{env:{...process.env,PORT:String(port),DATA_DIR:directory},stdio:['ignore','pipe','pipe']});
+ try{await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('exit',code=>reject(Error('Servidor terminou: '+code)));child.once('error',reject)});
+ const base=`http://127.0.0.1:${port}`;
+ const request=async(endpoint,method='GET',data,cookie)=>{const res=await fetch(base+'/api/'+endpoint,{method,headers:{Origin:base,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},...(data?{body:JSON.stringify(data)}:{})});return {status:res.status,body:await res.json(),cookie:res.headers.get('set-cookie')?.split(';')[0]}};
+ assert.equal((await request('state')).status,401);
+ const root=await request('setup','POST',{name:'Gestora',email:'root@example.test',password});assert.equal(root.status,200);assert.equal((await request('setup','POST',{name:'Outro',email:'outro@example.test',password})).status,409);
+ for(const [name,email]of [['Admin A','a@example.test'],['Admin B','b@example.test']])assert.equal((await request('users','POST',{name,email,password,role:'admin'},root.cookie)).status,201);
+ const a=await request('login','POST',{email:'a@example.test',password}),b=await request('login','POST',{email:'b@example.test',password});
+ assert.equal((await request('login','POST',{email:'a@example.test',password:'errada'})).status,401);
+ let state=(await request('state','GET',null,a.cookie)).body;
+ state.data.patients.push({id:'patient-a',name:'Paciente A',height:170,weight:70,history:[],notes:'Plano privado',goal:'Bem-estar'});
+ state.data.posts.push({id:'published',title:'Público',text:'Publicado',status:'Publicado'},{id:'draft',title:'Privado',text:'Rascunho',status:'Rascunho'});
+ assert.equal((await request('state','PUT',state,a.cookie)).status,200);
+ const foreign=(await request('state','GET',null,b.cookie)).body;assert.equal(foreign.data.patients.length,0);foreign.data.patients=state.data.patients;assert.equal((await request('state','PUT',foreign,b.cookie)).status,403);
+ assert.equal((await request('users','POST',{name:'Elevado',email:'e@example.test',password,role:'superadmin'},a.cookie)).status,403);
+ assert.equal((await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},b.cookie)).status,400);
+ const member=await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},a.cookie);assert.equal(member.status,201);
+ const p=await request('login','POST',{email:'p@example.test',password});const personal=await request('state','GET',null,p.cookie);assert.equal(personal.body.data.patients.length,1);assert.equal(personal.body.data.posts.length,1);assert.equal(personal.body.data.posts[0].id,'published');
+ assert.equal((await request('state','PUT',personal.body,p.cookie)).status,403);assert.equal((await request('users','GET',null,p.cookie)).status,403);
+ assert.equal((await request('state','PUT',state,a.cookie)).status,409);
+ const csrf=await fetch(base+'/api/logout',{method:'POST',headers:{Origin:'https://evil.example',Cookie:p.cookie}});assert.equal(csrf.status,403);
+ assert.equal((await request('users','PATCH',{id:member.body.user.id,active:false},a.cookie)).status,200);assert.equal((await request('state','GET',null,p.cookie)).status,401);
+ assert.equal((await request('password','POST',{currentPassword:password,password:password+'-nova'},a.cookie)).status,200);
+ assert.equal((await request('login','POST',{email:'a@example.test',password})).status,401);
+ await request('logout','POST',{},a.cookie);assert.equal((await request('state','GET',null,a.cookie)).status,401);
+ }finally{child.kill();await new Promise(r=>child.once('exit',r));await rm(directory,{recursive:true,force:true})}
+});
