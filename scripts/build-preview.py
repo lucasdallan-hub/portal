@@ -6,6 +6,7 @@ seed=old[old.index('const seed='):old.index('let data;try{')].replace('const see
 members=(root/'public/members.js').read_text()
 views=members[members.index('export function renderMembers'):].replace('export function ','function ')
 shim=r'''
+const clonePreview=value=>JSON.parse(JSON.stringify(value));
 const roleNames={superadmin:'Superadmin',admin:'Nutricionista · Admin',usuario:'Paciente'};
 const demoUsers=[{id:'root',name:'Larissa Costa',email:'gestora@example.com',role:'superadmin',active:true},{id:'admin',name:'Larissa Costa',email:'nutri@example.com',role:'admin',active:true},{id:'user',name:'Ana Beatriz Silva',email:'ana@example.com',role:'usuario',ownerId:'admin',patientId:'ana',active:true}];
 let demoRole=null,demoVersion=0;
@@ -24,7 +25,7 @@ async function api(path,options={}){
  if(path==='password')throw Error('A troca de senha real está disponível na versão com servidor.');
  if(path==='state'){
  if(options.method==='PUT'){if(demoRole==='usuario')throw Error('Acesso somente de leitura.');Object.assign(demoData,body.data);demoVersion++;}
- const snapshot=structuredClone(demoData);
+ const snapshot=clonePreview(demoData);
  if(demoRole==='usuario'){snapshot.patients=snapshot.patients.filter(p=>p.id===user.patientId);snapshot.appointments=snapshot.appointments.filter(a=>a.patient===user.patientId);snapshot.posts=snapshot.posts.filter(p=>p.status==='Publicado');}
  return {data:snapshot,version:demoVersion};
  }
@@ -34,7 +35,7 @@ async function api(path,options={}){
  if(demoRole!=='superadmin')throw Error('Somente o superadmin pode criar usuários.');
  if(demoUsers.some(u=>u.email===body.email))throw Error('E-mail já cadastrado.');
  if(body.role==='usuario'&&!demoData.patients.some(p=>p.id===body.patientId))throw Error('Selecione uma ficha de paciente.');
- demoUsers.push({id:crypto.randomUUID(),name:body.name,email:body.email,role:body.role,patientId:body.role==='usuario'?body.patientId:null,ownerId:'admin',active:true});
+ demoUsers.push({id:'demo-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),name:body.name,email:body.email,role:body.role,patientId:body.role==='usuario'?body.patientId:null,ownerId:'admin',active:true});
  }
  if(options.method==='PATCH'){const target=demoUsers.find(u=>u.id===body.id);if(target)target.active=body.active;}
  return {users:demoUsers.filter(u=>demoRole==='superadmin'||u.ownerId==='admin').map(u=>({...u}))};
@@ -43,15 +44,22 @@ async function api(path,options={}){
 }
 '''
 app=(root/'public/app.js').read_text().split('\n',1)[1]
+app=app.replace('crypto.randomUUID()', "(globalThis.crypto?.randomUUID?.()||('demo-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)))")
 app=app.replace("if(location.port)new EventSource('./events').onmessage=()=>location.reload();",'')
 app=app.replace("$('footer').lastElementChild.textContent='Área de membros · acesso individual';","$('footer').lastElementChild.textContent='Demonstração HTML · dados fictícios';")
 # Helpers stay scoped so both modules can be inlined without duplicate bindings.
 view_wrapper="const {renderMembers,patientPortal}=(()=>{\n"+members[:members.index('export const roleNames')]+views+"\nreturn {renderMembers,patientPortal};})();\n"
 # Seed uses its own date helper before application initialization.
 seed_wrapper="const demoData=(()=>{const today=new Date().toISOString().slice(0,10);\n"+seed+"\nreturn demoData;})();\n"
-css=(root/'public/style.css').read_text()+'.demo-banner{padding:10px 20px;background:#e6eddd;color:#52694b;display:flex;align-items:center;justify-content:center;gap:20px;font-size:11px;position:sticky;top:0;z-index:30}.demo-banner button{background:white;border:1px solid #c9d5bd;border-radius:5px;padding:5px 10px;color:#52694b}.authenticated .sidebar{top:45px}.authenticated .main{padding-top:0}@media(max-width:800px){.demo-banner{font-size:9px;gap:8px}}'
+css=(root/'public/style.css').read_text().split('\n',1)[1]+'.demo-banner{padding:10px 20px;background:#e6eddd;color:#52694b;display:flex;align-items:center;justify-content:center;gap:20px;font-size:11px;position:sticky;top:0;z-index:30}.demo-banner button{background:white;border:1px solid #c9d5bd;border-radius:5px;padding:5px 10px;color:#52694b}.authenticated .sidebar{top:45px}.authenticated .main{padding-top:0}@media(max-width:800px){.demo-banner{font-size:9px;gap:8px}}'
 html=(root/'public/index.html').read_text().replace('<link rel="stylesheet" href="./style.css">','<style>'+css+'</style>').replace('<script type="module" src="./app.js"></script>','<script>(async function(){\n'+seed_wrapper+shim+view_wrapper+app+'\n})().catch(function(error){document.body.classList.remove("logged-out");const alert=document.createElement("div");alert.style.cssText="position:fixed;inset:20px;z-index:999;background:white;padding:30px;color:#203e31";alert.textContent="Não foi possível abrir o portal: "+error.message+". Baixe este HTML e abra no Chrome, Edge ou Safari com JavaScript ativado.";document.body.append(alert)});</script>')
 html=html.replace('<body>', '<body><noscript>Para entrar, baixe o arquivo e abra em um navegador com JavaScript ativado.</noscript>')
 (root.parent/'nutri-preview.html').write_text(html)
 (root.parent/'nutri-login-atualizado.html').write_text(html)
 print('HTML atualizado: /workspace/nutri-preview.html')
+
+from zipfile import ZipFile, ZIP_DEFLATED
+with ZipFile(root.parent/'portal-nutri.zip','w',ZIP_DEFLATED) as archive:
+    archive.writestr('portal-nutri.html',html)
+    archive.writestr('COMO-ABRIR.txt','Extraia o ZIP. Abra portal-nutri.html diretamente no Chrome, Edge, Firefox ou Safari, fora da previa do aplicativo.\n\nAcessos ficticios:\nSuperadmin: lucasdallan / admin123\nNutricionista: admin / demo12345\nPaciente: paciente / demo12345\n\nJavaScript deve estar ativado. Demonstracao offline; nao use dados reais. Alteracoes sao descartadas ao recarregar.\n')
+print('ZIP criado:',root.parent/'portal-nutri.zip')
