@@ -4,7 +4,7 @@ root=Path(__file__).resolve().parents[1]
 old=subprocess.check_output(['git','show','c38ac4a:public/app.js'],cwd=root,text=True)
 seed=old[old.index('const seed='):old.index('let data;try{')].replace('const seed=','const demoData=')
 members=(root/'public/members.js').read_text()
-views=members[members.index('export function renderMembers'):].replace('export function ','function ')
+views=members[members.index('export function storyVideo'):].replace('export function ','function ')
 shim=r'''
 const clonePreview=value=>JSON.parse(JSON.stringify(value));
 const roleNames={superadmin:'Superadmin',admin:'Nutricionista · Admin',usuario:'Paciente'};
@@ -48,7 +48,7 @@ app=app.replace('crypto.randomUUID()', "(globalThis.crypto?.randomUUID?.()||('de
 app=app.replace("if(location.port)new EventSource('./events').onmessage=()=>location.reload();",'')
 app=app.replace("$('footer').lastElementChild.textContent='Área de membros · acesso individual';","$('footer').lastElementChild.textContent='Demonstração HTML · dados fictícios';")
 # Helpers stay scoped so both modules can be inlined without duplicate bindings.
-view_wrapper="const {renderMembers,patientPortal}=(()=>{\n"+members[:members.index('export const roleNames')]+views+"\nreturn {renderMembers,patientPortal};})();\n"
+view_wrapper="const {renderMembers,patientPortal,storyVideo}=(()=>{\n"+members[:members.index('export const roleNames')]+views+"\nreturn {renderMembers,patientPortal,storyVideo};})();\n"
 # Seed uses its own date helper before application initialization.
 seed_wrapper="const demoData=(()=>{const today=new Date().toISOString().slice(0,10);\n"+seed+"\nreturn demoData;})();\n"
 css=(root/'public/style.css').read_text().split('\n',1)[1]+'.demo-banner{padding:10px 20px;background:#e6eddd;color:#52694b;display:flex;align-items:center;justify-content:center;gap:20px;font-size:11px;position:sticky;top:0;z-index:30}.demo-banner button{background:white;border:1px solid #c9d5bd;border-radius:5px;padding:5px 10px;color:#52694b}.authenticated .sidebar{top:45px}.authenticated .main{padding-top:0}@media(max-width:800px){.demo-banner{font-size:9px;gap:8px}}'

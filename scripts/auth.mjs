@@ -14,7 +14,7 @@ export function createAuth(directory){
  const fail=(status,message)=>{throw Object.assign(Error(message),{status})};
  const own=(user,p)=>user.role==='superadmin'||p.ownerId===user.id;
  function view(user){if(user.role==='superadmin')return structuredClone(db.data);const patients=db.data.patients.filter(p=>user.role==='admin'?own(user,p):p.id===user.patientId&&p.ownerId===user.ownerId);const ids=new Set(patients.map(p=>p.id));return {patients,appointments:db.data.appointments.filter(a=>ids.has(a.patient)),posts:db.data.posts.filter(p=>p.ownerId===(user.role==='admin'?user.id:user.ownerId)&&(user.role==='admin'||p.status==='Publicado')),stories:db.data.stories.filter(s=>s.ownerId===(user.role==='admin'?user.id:user.ownerId)&&Date.now()-s.created<86400000)}}
- async function body(req){let size=0,parts=[];for await(const part of req){size+=part.length;if(size>1024*1024)fail(413,'Requisição muito grande.');parts.push(part)}try{return JSON.parse(Buffer.concat(parts).toString()||'{}')}catch{fail(400,'JSON inválido.')}}
+ async function body(req){let size=0,parts=[];for await(const part of req){size+=part.length;if(size>32*1024*1024)fail(413,'Requisição muito grande.');parts.push(part)}try{return JSON.parse(Buffer.concat(parts).toString()||'{}')}catch{fail(400,'JSON inválido.')}}
  const validPassword=p=>typeof p==='string'&&p.length>=12&&p.length<=128;
  const emailOK=e=>typeof e==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)&&e.length<=254;
  function validateUser(b){if(typeof b.name!=='string'||!b.name.trim()||b.name.length>100||!emailOK(b.email))fail(400,'Informe nome e e-mail válidos.');if(!validPassword(b.password))fail(400,'A senha deve conter de 12 a 128 caracteres.');}
@@ -38,7 +38,15 @@ export function createAuth(directory){
  for(const p of next.patients){if(typeof p.name!=='string'||!p.name.trim()||!Array.isArray(p.history)||!(Number(p.height)>=40&&Number(p.height)<=250)||!(Number(p.weight)>=2&&Number(p.weight)<=500))fail(400,'Ficha de paciente inválida.');}
  for(const a of next.appointments)if(!next.patients.some(p=>p.id===a.patient)||!/^\d{4}-\d{2}-\d{2}$/.test(a.date)||!/^\d{2}:\d{2}$/.test(a.time))fail(400,'Consulta inválida.');
  for(const p of next.posts)if(typeof p.title!=='string'||typeof p.text!=='string'||!['Publicado','Rascunho'].includes(p.status))fail(400,'Conteúdo inválido.');
- for(const st of next.stories)if(typeof st.title!=='string'||typeof st.text!=='string'||!Number.isFinite(st.created))fail(400,'Story inválido.');
+ for(const st of next.stories){
+ if(typeof st.title!=='string'||typeof st.text!=='string'||!Number.isFinite(st.created))fail(400,'Story inválido.');
+ if(st.video){
+ if(typeof st.video!=='string'||st.video.length>7*1024*1024)fail(400,'Vídeo muito grande. Limite: 5 MB.');
+ const match=/^data:video\/(mp4|webm|ogg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(st.video);if(!match)fail(400,'Formato de vídeo inválido.');
+ const bytes=Buffer.from(match[2],'base64');if(bytes.length>5*1024*1024||bytes.toString('base64')!==match[2])fail(400,'Vídeo inválido ou maior que 5 MB.');
+ const valid=match[1]==='mp4'?bytes.subarray(4,8).toString()==='ftyp':match[1]==='webm'?bytes.subarray(0,4).toString('hex')==='1a45dfa3':bytes.subarray(0,4).toString()==='OggS';if(!valid)fail(400,'O arquivo não corresponde ao formato informado.');
+ }
+ }
  // Patient login links must remain valid; deleting linked records is prohibited.
  for(const member of db.users.filter(x=>x.role==='usuario')){const p=db.data.patients.find(p=>p.id===member.patientId);if(p&&original.patients.some(x=>x.id===p.id)&&!next.patients.some(x=>x.id===p.id&&x.ownerId===member.ownerId))fail(409,'Existe um acesso de paciente vinculado a esta ficha.');}
  for(const k of Object.keys(empty())){db.data[k]=u.role==='superadmin'?next[k]:[...db.data[k].filter(r=>!original[k].some(x=>x.id===r.id)),...next[k]]}db.version++;persist();return json(res,200,{data:view(u),version:db.version})}

@@ -38,3 +38,9 @@ O GitHub recebe código por commits e push em `main`, nunca contas, senhas ou ba
 ## HTML de demonstração
 
 Execute `python3 scripts/build-preview.py` para gerar `../nutri-preview.html` com CSS e JavaScript embutidos. A prévia permite entrar com o superadmin fictício `lucasdallan` com a senha pública de demonstração `admin123`, além dos usuários `admin` e `paciente` com a senha de teste `demo12345`. Também aceita os e-mails demonstrativos exibidos nas contas. Esses acessos existem apenas no HTML e não são senhas da instalação real. O arquivo não autentica usuários em um servidor e descarta alterações ao recarregar. No portal real, o campo **Usuário (e-mail)** aceita o e-mail cadastrado e a senha individual.
+
+## Stories de vídeo
+
+Em **Stories → Criar story**, selecione **Vídeo** e envie um arquivo MP4, WebM ou Ogg de até 5 MB. Há prévia com controles antes de salvar; título é obrigatório e legenda é opcional. A reprodução depende dos codecs disponíveis no navegador (por exemplo, MP4/H.264). Vídeos são exibidos aos pacientes vinculados e o story sai da visualização após 24 horas. No HTML independente, o vídeo é mantido apenas na memória e desaparece ao recarregar.
+
+Nesta versão de desenvolvimento, vídeos são incorporados em base64 no armazenamento JSON do servidor, sujeitos ao limite de 32 MB por gravação do estado completo. Para volume maior e uso profissional, adotar armazenamento de mídia dedicado e endpoints de upload. A API valida tipo, tamanho e assinatura básica do contêiner; não realiza transcodificação.
