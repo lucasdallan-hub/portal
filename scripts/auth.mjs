@@ -40,7 +40,7 @@ export function createAuth(directory){
  for(const p of next.posts)if(typeof p.title!=='string'||typeof p.text!=='string'||!['Publicado','Rascunho'].includes(p.status))fail(400,'Conteúdo inválido.');
  for(const st of next.stories){
  if(typeof st.title!=='string'||typeof st.text!=='string'||!Number.isFinite(st.created))fail(400,'Story inválido.');
- if(st.appearance){const a=st.appearance;if(!['forest','sunset','berry','ocean','sand','night'].includes(a.background)||!['center','left','right'].includes(a.alignment)||!['white','dark'].includes(a.ink)||!Number.isFinite(a.size)||a.size<18||a.size>48||!Number.isFinite(a.y)||a.y<20||a.y>70)fail(400,'Estilo do story inválido.');}
+ if(st.appearance){const a=st.appearance;if(!['pink','forest','sunset','berry','ocean','sand','night'].includes(a.background)||!['center','left','right'].includes(a.alignment)||!['white','dark'].includes(a.ink)||!Number.isFinite(a.size)||a.size<18||a.size>48||!Number.isFinite(a.y)||a.y<20||a.y>70)fail(400,'Estilo do story inválido.');}
  if(st.photo&&st.video)fail(400,'Escolha uma foto ou um vídeo por story.');
  if(st.photo){
  if(typeof st.photo!=='string'||st.photo.length>7*1024*1024)fail(400,'Foto muito grande. Limite: 5 MB.');

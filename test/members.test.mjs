@@ -28,7 +28,7 @@ test('autenticação, gestão, isolamento entre admins e acesso individual do pa
  const member=await request('users','POST',{name:'Paciente A',email:'p@example.test',password,role:'usuario',patientId:'patient-a'},root.cookie);assert.equal(member.status,201);
  let mediaState=(await request('state','GET',null,a.cookie)).body;
  const video='data:video/mp4;base64,'+(await readFile(new URL('./fixtures/story.mp4',import.meta.url))).toString('base64');
- mediaState.data.stories.push({id:'video-story',title:'Vídeo de teste',text:'Legenda',emoji:'🌿',appearance:{background:'sunset',alignment:'center',ink:'white',size:32,y:40},created:Date.now(),video});
+ mediaState.data.stories.push({id:'video-story',title:'Vídeo de teste',text:'Legenda',emoji:'🌿',appearance:{background:'pink',alignment:'center',ink:'white',size:32,y:40},created:Date.now(),video});
  assert.equal((await request('state','PUT',mediaState,a.cookie)).status,200);
  const invalidState=(await request('state','GET',null,a.cookie)).body;invalidState.data.stories[0].video='data:text/html;base64,PHNjcmlwdD4=';
  assert.equal((await request('state','PUT',invalidState,a.cookie)).status,400);
@@ -40,7 +40,7 @@ test('autenticação, gestão, isolamento entre admins e acesso individual do pa
  const badPhoto=(await request('state','GET',null,a.cookie)).body;badPhoto.data.stories[1].photo='data:image/png;base64,YWJj';
  assert.equal((await request('state','PUT',badPhoto,a.cookie)).status,400);
  const badStyle=(await request('state','GET',null,a.cookie)).body;badStyle.data.stories[0].appearance.background='url(https://example.test)';assert.equal((await request('state','PUT',badStyle,a.cookie)).status,400);
- const p=await request('login','POST',{email:'p@example.test',password});const personal=await request('state','GET',null,p.cookie);assert.equal(personal.body.data.patients.length,1);assert.equal(personal.body.data.posts.length,1);assert.equal(personal.body.data.posts[0].id,'published');assert.equal(personal.body.data.stories[0].video,video);assert.equal(personal.body.data.stories[0].appearance.background,'sunset');assert.equal(personal.body.data.stories[1].photo,photo);
+ const p=await request('login','POST',{email:'p@example.test',password});const personal=await request('state','GET',null,p.cookie);assert.equal(personal.body.data.patients.length,1);assert.equal(personal.body.data.posts.length,1);assert.equal(personal.body.data.posts[0].id,'published');assert.equal(personal.body.data.stories[0].video,video);assert.equal(personal.body.data.stories[0].appearance.background,'pink');assert.equal(personal.body.data.stories[1].photo,photo);
  assert.equal((await request('state','PUT',personal.body,p.cookie)).status,403);assert.equal((await request('users','GET',null,p.cookie)).status,403);
  assert.equal((await request('state','PUT',state,a.cookie)).status,409);
  const csrf=await fetch(base+'/api/logout',{method:'POST',headers:{Origin:'https://evil.example',Cookie:p.cookie}});assert.equal(csrf.status,403);
