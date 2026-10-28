@@ -40,7 +40,11 @@ test('autenticação, gestão, isolamento entre admins e acesso individual do pa
  const badPhoto=(await request('state','GET',null,a.cookie)).body;badPhoto.data.stories[1].photo='data:image/png;base64,YWJj';
  assert.equal((await request('state','PUT',badPhoto,a.cookie)).status,400);
  const badStyle=(await request('state','GET',null,a.cookie)).body;badStyle.data.stories[0].appearance.background='url(https://example.test)';assert.equal((await request('state','PUT',badStyle,a.cookie)).status,400);
- const p=await request('login','POST',{email:'p@example.test',password});const personal=await request('state','GET',null,p.cookie);assert.equal(personal.body.data.patients.length,1);assert.equal(personal.body.data.posts.length,1);assert.equal(personal.body.data.posts[0].id,'published');assert.equal(personal.body.data.stories[0].video,video);assert.equal(personal.body.data.stories[0].appearance.background,'pink');assert.equal(personal.body.data.stories[1].photo,photo);
+ assert.equal((await request('state','GET',null,a.cookie)).body.data.stories.length,2);
+ const p=await request('login','POST',{email:'p@example.test',password});const personal=await request('state','GET',null,p.cookie);assert.equal(personal.body.data.patients.length,1);assert.equal(personal.body.data.posts.length,1);assert.equal(personal.body.data.posts[0].id,'published');assert.deepEqual(personal.body.data.stories,[]);
+ const otherContent=(await request('state','GET',null,b.cookie)).body;otherContent.data.posts.push({id:'other-admin-post',title:'Outro admin',text:'Não pertence ao paciente',status:'Publicado'});assert.equal((await request('state','PUT',otherContent,b.cookie)).status,200);
+ const newContent=(await request('state','GET',null,a.cookie)).body;newContent.data.posts.push({id:'new-published',title:'Nova publicação',text:'Para meus pacientes',status:'Publicado'});assert.equal((await request('state','PUT',newContent,a.cookie)).status,200);
+ const refreshed=(await request('state','GET',null,p.cookie)).body.data;assert.deepEqual(refreshed.posts.map(x=>x.id),['published','new-published']);assert.deepEqual(refreshed.stories,[]);
  assert.equal((await request('state','PUT',personal.body,p.cookie)).status,403);assert.equal((await request('users','GET',null,p.cookie)).status,403);
  assert.equal((await request('state','PUT',state,a.cookie)).status,409);
  assert.equal((await request('account','PATCH',{username:'novo-admin',currentPassword:'errada'},a.cookie)).status,400);

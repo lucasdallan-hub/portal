@@ -39,7 +39,7 @@ async function api(path,options={}){
  if(path==='state'){
  if(options.method==='PUT'){if(demoRole==='usuario')throw Error('Acesso somente de leitura.');Object.assign(demoData,body.data);demoVersion++;}
  const snapshot=clonePreview(demoData);
- if(demoRole==='usuario'){snapshot.patients=snapshot.patients.filter(p=>p.id===user.patientId);snapshot.appointments=snapshot.appointments.filter(a=>a.patient===user.patientId);snapshot.posts=snapshot.posts.filter(p=>p.status==='Publicado');}
+ if(demoRole==='usuario'){snapshot.stories=[];snapshot.patients=snapshot.patients.filter(p=>p.id===user.patientId);snapshot.appointments=snapshot.appointments.filter(a=>a.patient===user.patientId);snapshot.posts=snapshot.posts.filter(p=>p.status==='Publicado');}
  return {data:snapshot,version:demoVersion};
  }
  if(path==='users'){

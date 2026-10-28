@@ -15,7 +15,7 @@ Abra o portal e crie o primeiro **superadmin**. Essa tela só existe enquanto n�
 
 - **Superadmin:** gerencia nutricionistas e acessos de pacientes; consulta todos os registros. Cria contas admin ou paciente, bloqueia e reativa acessos. A conta superadmin inicial não pode ser bloqueada pela gestão de membros.
 - **Admin (nutricionista):** gerencia apenas os próprios pacientes, consultas, conteúdos e stories; consulta e bloqueia acessos de seus pacientes. A criação de usuários é exclusiva do superadmin.
-- **Usuário (paciente):** consulta somente sua ficha vinculada, plano, evolução, consultas e publicações da nutricionista responsável. Não acessa rascunhos, outras fichas ou gestão de membros.
+- **Usuário (paciente):** consulta somente sua ficha vinculada, plano, evolução, consultas e publicações da nutricionista responsável. Não acessa stories, rascunhos, outras fichas ou gestão de membros. O menu contém apenas Meu acompanhamento, Consultas e Conteúdos; a própria conta continua acessível pelo avatar no cabeçalho.
 
 Para cadastrar um paciente: entre como nutricionista, cadastre a ficha em **Pacientes**. Depois, entre como **superadmin** e use **Área de membros → Criar usuário**, selecionando a ficha. Cada ficha tem um único acesso de paciente. Admins novos começam com um espaço vazio. O superadmin pode criar fichas próprias; para atribuir um novo paciente a uma nutricionista, entre com a conta dessa nutricionista e cadastre-o nesse espaço.
 
@@ -41,7 +41,7 @@ Execute `python3 scripts/build-preview.py` para gerar `../nutri-preview.html` co
 
 ## Stories de vídeo
 
-Em **Stories → Criar story**, selecione **Vídeo** e envie um arquivo MP4, WebM ou Ogg de até 5 MB. Há prévia com controles antes de salvar; título é obrigatório e legenda é opcional. A reprodução depende dos codecs disponíveis no navegador (por exemplo, MP4/H.264). Vídeos são exibidos aos pacientes vinculados e o story sai da visualização após 24 horas. No HTML independente, o vídeo é mantido apenas na memória e desaparece ao recarregar.
+Em **Stories → Criar story**, selecione **Vídeo** e envie um arquivo MP4, WebM ou Ogg de até 5 MB. Há prévia com controles antes de salvar; título é obrigatório e legenda é opcional. A reprodução depende dos codecs disponíveis no navegador (por exemplo, MP4/H.264). Os stories ficam restritos à área de gestão e saem da visualização após 24 horas; pacientes não recebem stories. No HTML independente, o vídeo é mantido apenas na memória e desaparece ao recarregar.
 
 Nesta versão de desenvolvimento, vídeos são incorporados em base64 no armazenamento JSON do servidor, sujeitos ao limite de 32 MB por gravação do estado completo. Para volume maior e uso profissional, adotar armazenamento de mídia dedicado e endpoints de upload. A API valida tipo, tamanho e assinatura básica do contêiner; não realiza transcodificação.
 
@@ -53,10 +53,12 @@ Fotos JPEG, PNG e WebP de até 5 MB têm prévia antes de salvar. A legenda é o
 
 ## Editor visual de stories
 
-A criação usa uma prévia vertical 9:16, com texto sobre foto/vídeo ou fundos em degradê. Escolha fundo, cor do texto (botão Aa), alinhamento, tamanho, posição vertical e uma figurinha de emoji. O botão **Publicar story** salva a composição para exibir aos pacientes dentro do portal. A publicação preserva texto, fundo, posição e figurinha; não gera um arquivo de vídeo editado e não publica no Instagram. A câmera continua usando a captura nativa do celular. Alterações na prévia HTML são apenas demonstrativas e não persistem ao recarregar.
+A criação usa uma prévia vertical 9:16, com texto sobre foto/vídeo ou fundos em degradê. Escolha fundo, cor do texto (botão Aa), alinhamento, tamanho, posição vertical e uma figurinha de emoji. O botão **Publicar story** salva a composição na área de gestão do portal. A publicação preserva texto, fundo, posição e figurinha; não gera um arquivo de vídeo editado e não publica no Instagram. A câmera continua usando a captura nativa do celular. Alterações na prévia HTML são apenas demonstrativas e não persistem ao recarregar.
 
 ## Editar minha conta
 
 Todos os perfis encontram **Minha conta → Editar conta**. É possível definir ou alterar o usuário de acesso (3 a 32 caracteres: letras, números, ponto, hífen ou sublinhado), atualizar o e-mail e, opcionalmente, trocar a senha. A senha atual é obrigatória para confirmar. Nova senha exige pelo menos 12 caracteres e confirmação no formulário; deixe os campos novos vazios para manter a senha. Usuário e e-mail precisam ser únicos. O login aceita usuário ou e-mail, sem diferenciar maiúsculas e minúsculas. Contas antigas continuam entrando pelo e-mail até definir um usuário.
 
 A API sempre altera a conta autenticada, sem permitir mudar perfil ou editar outra conta por esse formulário. Alterar os dados encerra as outras sessões e preserva a atual. Na demonstração HTML, a edição é apenas temporária e se perde ao recarregar; a instalação com servidor persiste os dados e mantém as senhas protegidas por scrypt.
+
+A área do paciente busca os conteúdos publicados pela nutricionista responsável a cada 30 segundos enquanto a página estiver visível, e também ao voltar à aba. Stories e rascunhos não são enviados à API do paciente. Na demonstração HTML, os conteúdos são fictícios e não recebem publicações do servidor.
