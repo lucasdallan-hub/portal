@@ -40,6 +40,13 @@ export function createAuth(directory){
  for(const p of next.posts)if(typeof p.title!=='string'||typeof p.text!=='string'||!['Publicado','Rascunho'].includes(p.status))fail(400,'Conteúdo inválido.');
  for(const st of next.stories){
  if(typeof st.title!=='string'||typeof st.text!=='string'||!Number.isFinite(st.created))fail(400,'Story inválido.');
+ if(st.photo&&st.video)fail(400,'Escolha uma foto ou um vídeo por story.');
+ if(st.photo){
+ if(typeof st.photo!=='string'||st.photo.length>7*1024*1024)fail(400,'Foto muito grande. Limite: 5 MB.');
+ const match=/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(st.photo);if(!match)fail(400,'Formato de foto inválido.');
+ const bytes=Buffer.from(match[2],'base64');if(bytes.length>5*1024*1024||bytes.toString('base64')!==match[2])fail(400,'Foto inválida ou maior que 5 MB.');
+ const valid=match[1]==='jpeg'?bytes.subarray(0,3).toString('hex')==='ffd8ff':match[1]==='png'?bytes.subarray(0,8).toString('hex')==='89504e470d0a1a0a':bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP';if(!valid)fail(400,'O arquivo não corresponde ao formato de foto informado.');
+ }
  if(st.video){
  if(typeof st.video!=='string'||st.video.length>7*1024*1024)fail(400,'Vídeo muito grande. Limite: 5 MB.');
  const match=/^data:video\/(mp4|webm|ogg);base64,([A-Za-z0-9+/]+={0,2})$/.exec(st.video);if(!match)fail(400,'Formato de vídeo inválido.');

@@ -44,3 +44,9 @@ Execute `python3 scripts/build-preview.py` para gerar `../nutri-preview.html` co
 Em **Stories → Criar story**, selecione **Vídeo** e envie um arquivo MP4, WebM ou Ogg de até 5 MB. Há prévia com controles antes de salvar; título é obrigatório e legenda é opcional. A reprodução depende dos codecs disponíveis no navegador (por exemplo, MP4/H.264). Vídeos são exibidos aos pacientes vinculados e o story sai da visualização após 24 horas. No HTML independente, o vídeo é mantido apenas na memória e desaparece ao recarregar.
 
 Nesta versão de desenvolvimento, vídeos são incorporados em base64 no armazenamento JSON do servidor, sujeitos ao limite de 32 MB por gravação do estado completo. Para volume maior e uso profissional, adotar armazenamento de mídia dedicado e endpoints de upload. A API valida tipo, tamanho e assinatura básica do contêiner; não realiza transcodificação.
+
+## Fotos e captura pela câmera
+
+Em **Stories → Criar story → Foto**, selecione uma imagem da galeria ou toque em **Tirar foto**. Em **Vídeo**, use **Gravar vídeo**. São entradas de captura nativas (`capture="environment"`): celulares compatíveis abrem a câmera do sistema; no computador ou em navegadores sem suporte, aparece o seletor de arquivos. Não há gravação automática nem acesso à câmera ao abrir a página. A captura física depende do aparelho e não foi testada neste ambiente.
+
+Fotos JPEG, PNG e WebP de até 5 MB têm prévia antes de salvar. A legenda é opcional. A API verifica tipo, tamanho e assinatura básica da imagem; SVG não é aceito. Fotos seguem o mesmo armazenamento, limite de requisição e expiração de 24 horas dos vídeos. O HTML de demonstração descarta as mídias ao recarregar.
