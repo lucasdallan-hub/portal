@@ -50,3 +50,7 @@ Nesta versão de desenvolvimento, vídeos são incorporados em base64 no armazen
 Em **Stories → Criar story → Foto**, selecione uma imagem da galeria ou toque em **Tirar foto**. Em **Vídeo**, use **Gravar vídeo**. São entradas de captura nativas (`capture="environment"`): celulares compatíveis abrem a câmera do sistema; no computador ou em navegadores sem suporte, aparece o seletor de arquivos. Não há gravação automática nem acesso à câmera ao abrir a página. A captura física depende do aparelho e não foi testada neste ambiente.
 
 Fotos JPEG, PNG e WebP de até 5 MB têm prévia antes de salvar. A legenda é opcional. A API verifica tipo, tamanho e assinatura básica da imagem; SVG não é aceito. Fotos seguem o mesmo armazenamento, limite de requisição e expiração de 24 horas dos vídeos. O HTML de demonstração descarta as mídias ao recarregar.
+
+## Editor visual de stories
+
+A criação usa uma prévia vertical 9:16, com texto sobre foto/vídeo ou fundos em degradê. Escolha fundo, cor do texto (botão Aa), alinhamento, tamanho, posição vertical e uma figurinha de emoji. O botão **Publicar story** salva a composição para exibir aos pacientes dentro do portal. A publicação preserva texto, fundo, posição e figurinha; não gera um arquivo de vídeo editado e não publica no Instagram. A câmera continua usando a captura nativa do celular. Alterações na prévia HTML são apenas demonstrativas e não persistem ao recarregar.
