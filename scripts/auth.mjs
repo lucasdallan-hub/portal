@@ -1,7 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
-const publicUser=({id,name,email,role,ownerId,patientId,active})=>({id,name,email,role,ownerId,patientId,active});
+const publicUser=({id,name,email,username,role,ownerId,patientId,active})=>({id,name,email,username,role,ownerId,patientId,active});
 const hash=(password,salt=randomBytes(16).toString('hex'))=>`${salt}:${scryptSync(password,salt,64).toString('hex')}`;
 function verify(password,stored){const [salt,key]=stored.split(':');return timingSafeEqual(Buffer.from(key,'hex'),scryptSync(password,salt,64))}
 const empty=()=>({patients:[],appointments:[],posts:[],stories:[]});
@@ -16,6 +16,8 @@ export function createAuth(directory){
  function view(user){if(user.role==='superadmin')return structuredClone(db.data);const patients=db.data.patients.filter(p=>user.role==='admin'?own(user,p):p.id===user.patientId&&p.ownerId===user.ownerId);const ids=new Set(patients.map(p=>p.id));return {patients,appointments:db.data.appointments.filter(a=>ids.has(a.patient)),posts:db.data.posts.filter(p=>p.ownerId===(user.role==='admin'?user.id:user.ownerId)&&(user.role==='admin'||p.status==='Publicado')),stories:db.data.stories.filter(s=>s.ownerId===(user.role==='admin'?user.id:user.ownerId)&&Date.now()-s.created<86400000)}}
  async function body(req){let size=0,parts=[];for await(const part of req){size+=part.length;if(size>32*1024*1024)fail(413,'Requisição muito grande.');parts.push(part)}try{return JSON.parse(Buffer.concat(parts).toString()||'{}')}catch{fail(400,'JSON inválido.')}}
  const validPassword=p=>typeof p==='string'&&p.length>=12&&p.length<=128;
+ const usernameOK=value=>typeof value==='string'&&/^[a-z0-9][a-z0-9._-]{2,31}$/.test(value);
+ const normalize=value=>typeof value==='string'?value.trim().toLowerCase():'';
  const emailOK=e=>typeof e==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)&&e.length<=254;
  function validateUser(b){if(typeof b.name!=='string'||!b.name.trim()||b.name.length>100||!emailOK(b.email))fail(400,'Informe nome e e-mail válidos.');if(!validPassword(b.password))fail(400,'A senha deve conter de 12 a 128 caracteres.');}
  function session(req){const token=/\bnutri_session=([^;]+)/.exec(req.headers.cookie||'')?.[1];const s=sessions.get(token);if(!s||s.expires<Date.now()){sessions.delete(token);return null}const user=db.users.find(u=>u.id===s.id&&u.active);return user?{user,token}:null}
@@ -26,9 +28,21 @@ export function createAuth(directory){
  const b=req.method==='GET'?{}:await body(req);
  if(url.pathname==='/api/session'&&req.method==='GET'){const s=session(req);return json(res,200,{user:s?publicUser(s.user):null,needsSetup:db.users.length===0})}
  if(url.pathname==='/api/setup'&&req.method==='POST'){if(db.users.length)fail(409,'A configuração inicial já foi realizada.');validateUser(b);const u={id:randomUUID(),name:b.name.trim(),email:b.email.toLowerCase().trim(),password:hash(b.password),role:'superadmin',active:true};db.users.push(u);persist();return signIn(req,res,u)}
- if(url.pathname==='/api/login'&&req.method==='POST'){const key=req.socket.remoteAddress;let a=attempts.get(key);if(a&&a.until<Date.now()){attempts.delete(key);a=null}if(a?.count>=10)fail(429,'Muitas tentativas. Aguarde 15 minutos.');if(typeof b.password!=='string'||b.password.length>128)fail(401,'E-mail ou senha inválidos.');const u=db.users.find(u=>u.email===String(b.email).trim().toLowerCase()&&u.active);if(!u||!verify(b.password,u.password)){attempts.set(key,{count:(a?.count||0)+1,until:a?.until||Date.now()+900000});fail(401,'E-mail ou senha inválidos.')}attempts.delete(key);return signIn(req,res,u)}
+ if(url.pathname==='/api/login'&&req.method==='POST'){const key=req.socket.remoteAddress;let a=attempts.get(key);if(a&&a.until<Date.now()){attempts.delete(key);a=null}if(a?.count>=10)fail(429,'Muitas tentativas. Aguarde 15 minutos.');if(typeof b.password!=='string'||b.password.length>128)fail(401,'E-mail ou senha inválidos.');const login=normalize(b.username??b.email);const u=db.users.find(u=>(u.email===login||u.username===login)&&u.active);if(!u||!verify(b.password,u.password)){attempts.set(key,{count:(a?.count||0)+1,until:a?.until||Date.now()+900000});fail(401,'E-mail ou senha inválidos.')}attempts.delete(key);return signIn(req,res,u)}
  const s=session(req);if(!s)fail(401,'Entre na sua conta para continuar.');const u=s.user;
  if(url.pathname==='/api/logout'&&req.method==='POST'){sessions.delete(s.token);res.setHeader('Set-Cookie','nutri_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true})}
+ if(url.pathname==='/api/account'&&req.method==='PATCH'){
+ if(typeof b.currentPassword!=='string'||b.currentPassword.length>128||!verify(b.currentPassword,u.password))fail(400,'Senha atual incorreta.');
+ const username=normalize(b.username),email=normalize(b.email??u.email);
+ if(!usernameOK(username))fail(400,'Use um usuário de 3 a 32 caracteres: letras, números, ponto, hífen ou sublinhado.');
+ if(!emailOK(email))fail(400,'Informe um e-mail válido.');
+ if(db.users.some(x=>x.id!==u.id&&(x.username===username||x.email===email)))fail(409,'Usuário ou e-mail já está em uso.');
+ if(b.password&&!validPassword(b.password))fail(400,'A nova senha deve conter de 12 a 128 caracteres.');
+ const nextPassword=b.password?hash(b.password):u.password;
+ u.username=username;u.email=email;u.password=nextPassword;
+ for(const[token,v]of sessions)if(v.id===u.id&&token!==s.token)sessions.delete(token);
+ persist();return json(res,200,{user:publicUser(u)});
+ }
  if(url.pathname==='/api/password'&&req.method==='POST'){if(!verify(String(b.currentPassword),u.password))fail(400,'Senha atual incorreta.');if(!validPassword(b.password))fail(400,'Use de 12 a 128 caracteres.');u.password=hash(b.password);for(const [token,v]of sessions)if(v.id===u.id&&token!==s.token)sessions.delete(token);persist();return json(res,200,{ok:true})}
  if(url.pathname==='/api/state'&&req.method==='GET')return json(res,200,{data:view(u),version:db.version});
  if(url.pathname==='/api/state'&&req.method==='PUT'){

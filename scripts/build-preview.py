@@ -9,6 +9,8 @@ shim=r'''
 const clonePreview=value=>JSON.parse(JSON.stringify(value));
 const roleNames={superadmin:'Superadmin',admin:'Nutricionista · Admin',usuario:'Paciente'};
 const demoUsers=[{id:'root',name:'Larissa Costa',email:'gestora@example.com',role:'superadmin',active:true},{id:'admin',name:'Larissa Costa',email:'nutri@example.com',role:'admin',active:true},{id:'user',name:'Ana Beatriz Silva',email:'ana@example.com',role:'usuario',ownerId:'admin',patientId:'ana',active:true}];
+demoUsers[0].username='lucasdallan';demoUsers[1].username='admin';demoUsers[2].username='paciente';
+const demoPasswords={root:'admin123',admin:'demo12345',user:'demo12345'};
 let demoRole=null,demoVersion=0;
 async function initSession(){
  document.body.classList.add('logged-out');
@@ -22,7 +24,18 @@ async function initSession(){
 async function api(path,options={}){
  const user=demoUsers.find(u=>u.role===demoRole),body=options.body?JSON.parse(options.body):{};
  if(path==='logout'){location.reload();return {ok:true}}
- if(path==='password')throw Error('A troca de senha real está disponível na versão com servidor.');
+ if(path==='account'){
+ if(body.currentPassword!==demoPasswords[user.id])throw Error('Senha atual incorreta.');
+ const username=String(body.username||'').trim().toLowerCase(),email=String(body.email||'').trim().toLowerCase();
+ if(!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username))throw Error('Usuário inválido. Use de 3 a 32 caracteres.');
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('E-mail inválido.');
+ if(demoUsers.some(x=>x.id!==user.id&&(x.username===username||x.email===email)))throw Error('Usuário ou e-mail já está em uso.');
+ if(body.password&&(body.password.length<12||body.password.length>128))throw Error('Use de 12 a 128 caracteres na nova senha.');
+ user.username=username;user.email=email;if(body.password)demoPasswords[user.id]=body.password;
+ return {user:{...user}};
+ }
+ if(path==='password'){if(body.currentPassword!==demoPasswords[user.id])throw Error('Senha atual incorreta.');if(!body.password||body.password.length<12||body.password.length>128)throw Error('Use de 12 a 128 caracteres.');demoPasswords[user.id]=body.password;return {ok:true};}
+
  if(path==='state'){
  if(options.method==='PUT'){if(demoRole==='usuario')throw Error('Acesso somente de leitura.');Object.assign(demoData,body.data);demoVersion++;}
  const snapshot=clonePreview(demoData);
@@ -80,3 +93,12 @@ super_html=super_html.replace("route=location.hash.slice(1)||'dashboard';", "rou
 (root.parent/'superadmin-direto.html').write_text(super_html)
 with ZipFile(root.parent/'portal-nutri.zip','a',ZIP_DEFLATED) as archive:
     archive.writestr('superadmin.html',super_html)
+
+# Direct patient demo, with the same editable-account UI.
+start=html.index('async function initSession(){')
+end=html.index('async function api(',start)
+patient_html=html[:start]+"async function initSession(){demoRole='usuario';document.body.classList.add('authenticated');return demoUsers.find(u=>u.role==='usuario');}\n"+html[end:]
+patient_html=patient_html.replace('<body>','<body class="authenticated">')
+(root.parent/'nutri-paciente.html').write_text(patient_html)
+with ZipFile(root.parent/'portal-nutri.zip','a',ZIP_DEFLATED) as archive:
+    archive.writestr('paciente.html',patient_html)

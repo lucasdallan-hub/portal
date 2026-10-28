@@ -54,3 +54,9 @@ Fotos JPEG, PNG e WebP de até 5 MB têm prévia antes de salvar. A legenda é o
 ## Editor visual de stories
 
 A criação usa uma prévia vertical 9:16, com texto sobre foto/vídeo ou fundos em degradê. Escolha fundo, cor do texto (botão Aa), alinhamento, tamanho, posição vertical e uma figurinha de emoji. O botão **Publicar story** salva a composição para exibir aos pacientes dentro do portal. A publicação preserva texto, fundo, posição e figurinha; não gera um arquivo de vídeo editado e não publica no Instagram. A câmera continua usando a captura nativa do celular. Alterações na prévia HTML são apenas demonstrativas e não persistem ao recarregar.
+
+## Editar minha conta
+
+Todos os perfis encontram **Minha conta → Editar conta**. É possível definir ou alterar o usuário de acesso (3 a 32 caracteres: letras, números, ponto, hífen ou sublinhado), atualizar o e-mail e, opcionalmente, trocar a senha. A senha atual é obrigatória para confirmar. Nova senha exige pelo menos 12 caracteres e confirmação no formulário; deixe os campos novos vazios para manter a senha. Usuário e e-mail precisam ser únicos. O login aceita usuário ou e-mail, sem diferenciar maiúsculas e minúsculas. Contas antigas continuam entrando pelo e-mail até definir um usuário.
+
+A API sempre altera a conta autenticada, sem permitir mudar perfil ou editar outra conta por esse formulário. Alterar os dados encerra as outras sessões e preserva a atual. Na demonstração HTML, a edição é apenas temporária e se perde ao recarregar; a instalação com servidor persiste os dados e mantém as senhas protegidas por scrypt.
