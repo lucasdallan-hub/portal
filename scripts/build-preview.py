@@ -42,15 +42,26 @@ async function api(path,options={}){
  if(demoRole==='usuario'){snapshot.stories=[];snapshot.patients=snapshot.patients.filter(p=>p.id===user.patientId);snapshot.appointments=snapshot.appointments.filter(a=>a.patient===user.patientId);snapshot.posts=snapshot.posts.filter(p=>p.status==='Publicado');}
  return {data:snapshot,version:demoVersion};
  }
+ if(path==='manage'){
+ if(demoRole!=='superadmin')throw Error('Acesso restrito ao superadmin.');const key={patient:'patients',appointment:'appointments',post:'posts',story:'stories'}[body.resource];if(!key)throw Error('Registro inválido.');
+ if(key==='patients'){demoData.appointments=demoData.appointments.filter(a=>a.patient!==body.id);for(let i=demoUsers.length-1;i>=0;i--)if(demoUsers[i].patientId===body.id)demoUsers.splice(i,1);}
+ demoData[key]=demoData[key].filter(x=>x.id!==body.id);demoVersion++;return {ok:true,data:clonePreview(demoData),version:demoVersion};
+ }
  if(path==='users'){
  if(demoRole==='usuario')throw Error('Acesso restrito.');
  if(options.method==='POST'){
  if(demoRole!=='superadmin')throw Error('Somente o superadmin pode criar usuários.');
  if(demoUsers.some(u=>u.email===body.email))throw Error('E-mail já cadastrado.');
  if(body.role==='usuario'&&!demoData.patients.some(p=>p.id===body.patientId))throw Error('Selecione uma ficha de paciente.');
- demoUsers.push({id:'demo-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),name:body.name,email:body.email,role:body.role,patientId:body.role==='usuario'?body.patientId:null,ownerId:'admin',active:true});
+ demoUsers.push({id:'demo-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),name:body.name,email:body.email,role:body.role,username:body.username||undefined,patientId:body.role==='usuario'?body.patientId:null,ownerId:'admin',active:true});
  }
- if(options.method==='PATCH'){const target=demoUsers.find(u=>u.id===body.id);if(target)target.active=body.active;}
+ if(options.method==='PATCH'||options.method==='DELETE'){
+ const target=demoUsers.find(u=>u.id===body.id);if(!target)throw Error('Usuário não encontrado.');
+ if(demoRole!=='superadmin'&&(options.method==='DELETE'||Object.keys(body).some(k=>!['id','active'].includes(k))))throw Error('Acesso restrito ao superadmin.');
+ if(target.role==='superadmin'&&target.active&&(options.method==='DELETE'||body.active===false||(body.role&&body.role!=='superadmin'))&&!demoUsers.some(u=>u.id!==target.id&&u.role==='superadmin'&&u.active))throw Error('Mantenha pelo menos um superadmin ativo.');
+ if(options.method==='DELETE'){const replacement=demoUsers.find(u=>u.role==='superadmin'&&u.id!==target.id&&u.active);if(!replacement)throw Error('Não é possível excluir o último superadmin.');for(const records of Object.values(demoData))for(const r of records)if(r.ownerId===target.id)r.ownerId=replacement.id;demoUsers.splice(demoUsers.indexOf(target),1);}
+ else{if(body.username&&demoUsers.some(u=>u.id!==target.id&&u.username===body.username))throw Error('Usuário já cadastrado.');if(body.email&&demoUsers.some(u=>u.id!==target.id&&u.email===body.email))throw Error('E-mail já cadastrado.');if(body.role==='usuario'&&!demoData.patients.some(p=>p.id===body.patientId))throw Error('Selecione a ficha do paciente.');for(const k of ['name','username','email','role','active'])if(body[k]!==undefined)target[k]=body[k];if(body.patientId)target.patientId=body.patientId;if(target.role!=='usuario')target.patientId=null;if(body.password)demoPasswords[target.id]=body.password;}
+ }
  return {users:demoUsers.filter(u=>demoRole==='superadmin'||u.ownerId==='admin').map(u=>({...u}))};
  }
  throw Error('Recurso disponível na versão com servidor.');

@@ -65,5 +65,22 @@ test('autenticação, gestão, isolamento entre admins e acesso individual do pa
  assert.equal((await request('password','POST',{currentPassword:password,password:password+'-nova'},a.cookie)).status,200);
  assert.equal((await request('login','POST',{email:'a@example.test',password})).status,401);
  await request('logout','POST',{},a.cookie);assert.equal((await request('state','GET',null,a.cookie)).status,401);
+ // Superadmin can manage all members and data without leaving orphaned records.
+ assert.equal((await request('users','DELETE',{id:b.body.user.id},b.cookie)).status,403);
+ assert.equal((await request('users','DELETE',{id:root.body.user.id},root.cookie)).status,409);
+ assert.equal((await request('users','PATCH',{id:root.body.user.id,active:false},root.cookie)).status,409);
+ assert.equal((await request('users','PATCH',{id:root.body.user.id,role:'admin'},root.cookie)).status,409);
+ const edited=await request('users','PATCH',{id:b.body.user.id,name:'Admin B Editado',username:'admin-b-editado',password:password+'-b'},root.cookie);assert.equal(edited.status,200);assert.equal(edited.body.user.name,'Admin B Editado');assert.equal((await request('state','GET',null,b.cookie)).status,401);
+ const bAgain=await request('login','POST',{username:'admin-b-editado',password:password+'-b'});assert.equal(bAgain.status,200);
+ const superTwo=await request('users','POST',{name:'Outro Super',email:'super2@example.test',password,role:'superadmin'},root.cookie);assert.equal(superTwo.status,201);
+ assert.equal((await request('users','DELETE',{id:superTwo.body.user.id},root.cookie)).status,200);
+ assert.equal((await request('users','DELETE',{id:b.body.user.id},root.cookie)).status,200);
+ const global=(await request('state','GET',null,root.cookie)).body;assert.equal(global.data.posts.find(x=>x.id==='other-admin-post').ownerId,root.body.user.id);
+ global.data.appointments.push({id:'delete-consult',patient:'patient-a',date:'2026-10-28',time:'10:00',status:'Confirmada',type:'Retorno'},{id:'cascade-consult',patient:'patient-a',date:'2026-10-28',time:'11:00',status:'Confirmada',type:'Retorno'});global.data.patients[0].notes='Editado pelo superadmin';global.data.patients[0].ownerId=root.body.user.id;assert.equal((await request('state','PUT',global,root.cookie)).status,200);
+ assert.equal((await request('users','GET',null,root.cookie)).body.users.find(x=>x.id===member.body.user.id).ownerId,root.body.user.id);
+ const adminAgain=await request('login','POST',{username:'admin-a',password:password+'-nova'});
+ let version=(await request('state','GET',null,root.cookie)).body.version;assert.equal((await request('manage','DELETE',{resource:'post',id:'published',version},adminAgain.cookie)).status,403);
+ for(const [resource,id]of [['appointment','delete-consult'],['post','published'],['story','video-story'],['patient','patient-a']]){version=(await request('state','GET',null,root.cookie)).body.version;assert.equal((await request('manage','DELETE',{resource,id,version},root.cookie)).status,200);}
+ assert.equal((await request('users','GET',null,root.cookie)).body.users.some(x=>x.id===member.body.user.id),false);assert.equal((await request('state','GET',null,root.cookie)).body.data.patients.length,0);assert.equal((await request('state','GET',null,root.cookie)).body.data.appointments.length,0);
  }finally{child.kill();await new Promise(r=>child.once('exit',r));await rm(directory,{recursive:true,force:true})}
 });

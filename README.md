@@ -13,11 +13,11 @@ O servidor escuta em `0.0.0.0:3000` (`PORT` altera a porta). A visualização é
 
 Abra o portal e crie o primeiro **superadmin**. Essa tela só existe enquanto não houver contas; não há senha padrão. Escolha uma senha de pelo menos 12 caracteres. Não publique uma instalação acessível a terceiros antes de concluir esse passo.
 
-- **Superadmin:** gerencia nutricionistas e acessos de pacientes; consulta todos os registros. Cria contas admin ou paciente, bloqueia e reativa acessos. A conta superadmin inicial não pode ser bloqueada pela gestão de membros.
+- **Superadmin:** gerencia nutricionistas e acessos de pacientes; consulta todos os registros. Cria, edita, bloqueia e exclui contas superadmin, admin e paciente; pode alterar perfil e definir nova senha. Edita e exclui registros de todos os responsáveis. É obrigatório manter pelo menos um superadmin ativo.
 - **Admin (nutricionista):** gerencia apenas os próprios pacientes, consultas, conteúdos e stories; consulta e bloqueia acessos de seus pacientes. A criação de usuários é exclusiva do superadmin.
 - **Usuário (paciente):** consulta somente sua ficha vinculada, plano, evolução, consultas e publicações da nutricionista responsável. Não acessa stories, rascunhos, outras fichas ou gestão de membros. O menu contém apenas Meu acompanhamento, Consultas e Conteúdos; a própria conta continua acessível pelo avatar no cabeçalho.
 
-Para cadastrar um paciente: entre como nutricionista, cadastre a ficha em **Pacientes**. Depois, entre como **superadmin** e use **Área de membros → Criar usuário**, selecionando a ficha. Cada ficha tem um único acesso de paciente. Admins novos começam com um espaço vazio. O superadmin pode criar fichas próprias; para atribuir um novo paciente a uma nutricionista, entre com a conta dessa nutricionista e cadastre-o nesse espaço.
+Para cadastrar um paciente: entre como nutricionista, cadastre a ficha em **Pacientes**. Depois, entre como **superadmin** e use **Área de membros → Criar usuário**, selecionando a ficha. Cada ficha tem um único acesso de paciente. Admins novos começam com um espaço vazio. O superadmin também pode cadastrar ou editar fichas e selecionar a nutricionista responsável no formulário.
 
 Em **Minha conta**, todos podem alterar a própria senha ou sair. A senha inicial é definida pelo gestor e deve ser entregue por canal privado; não há envio de e-mail ou recuperação automática de senha nesta versão.
 
@@ -62,3 +62,9 @@ Todos os perfis encontram **Minha conta → Editar conta**. É possível definir
 A API sempre altera a conta autenticada, sem permitir mudar perfil ou editar outra conta por esse formulário. Alterar os dados encerra as outras sessões e preserva a atual. Na demonstração HTML, a edição é apenas temporária e se perde ao recarregar; a instalação com servidor persiste os dados e mantém as senhas protegidas por scrypt.
 
 A área do paciente busca os conteúdos publicados pela nutricionista responsável a cada 30 segundos enquanto a página estiver visível, e também ao voltar à aba. Stories e rascunhos não são enviados à API do paciente. Na demonstração HTML, os conteúdos são fictícios e não recebem publicações do servidor.
+
+## Gestão global pelo superadmin
+
+Em **Área de membros**, o superadmin pode criar qualquer perfil, editar nome, usuário, e-mail, perfil e senha de outros membros, bloquear, reativar ou excluir contas. Excluir uma nutricionista preserva seus registros e transfere a responsabilidade ao superadmin que executou a ação. A API impede excluir, bloquear ou rebaixar o último superadmin ativo. Para rebaixar um gestor a paciente, transfira suas fichas e conteúdos antes.
+
+As fichas de pacientes, consultas e conteúdos têm opção de exclusão dentro dos formulários de edição, exclusiva do superadmin, com confirmação. Excluir uma ficha remove também suas consultas e a conta de paciente vinculada, encerrando as sessões dessa conta. O histórico de evolução permite editar e excluir registros. Stories podem ser editados no mesmo editor visual, preservando a mídia existente ou substituindo-a. A exclusão de dados usa controle de versão para evitar apagar sobre mudanças de outra sessão. A demonstração HTML simula esses controles com dados fictícios; o servidor verifica as permissões de fato.
