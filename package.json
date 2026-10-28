@@ -1,0 +1,1 @@
+{"name":"nutri-portal","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"node scripts/server.mjs","start":"node scripts/server.mjs","test":"node --test"},"engines":{"node":">=22"}}
