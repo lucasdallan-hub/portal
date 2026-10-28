@@ -1,0 +1,55 @@
+from pathlib import Path
+import subprocess
+root=Path(__file__).resolve().parents[1]
+old=subprocess.check_output(['git','show','c38ac4a:public/app.js'],cwd=root,text=True)
+seed=old[old.index('const seed='):old.index('let data;try{')].replace('const seed=','const demoData=')
+members=(root/'public/members.js').read_text()
+views=members[members.index('export function renderMembers'):].replace('export function ','function ')
+shim=r'''
+const roleNames={superadmin:'Superadmin',admin:'Nutricionista · Admin',usuario:'Paciente'};
+const demoUsers=[{id:'root',name:'Larissa Costa',email:'gestora@example.com',role:'superadmin',active:true},{id:'admin',name:'Larissa Costa',email:'nutri@example.com',role:'admin',active:true},{id:'user',name:'Ana Beatriz Silva',email:'ana@example.com',role:'usuario',ownerId:'admin',patientId:'ana',active:true}];
+let demoRole=null,demoVersion=0;
+async function initSession(){
+ document.body.classList.add('logged-out');
+ const overlay=document.createElement('section');overlay.className='login-screen';
+ overlay.innerHTML=`<div class="login-intro"><a class="brand">✳ nutri.</a><div class="eyebrow">ÁREA DE MEMBROS</div><h1>Seu cuidado.<br>Um espaço só seu.</h1><p>Acesse seu acompanhamento com usuário e senha.</p><div class="login-leaf">🌿</div></div><div class="login-card"><span class="tag">DEMONSTRAÇÃO INTERATIVA</span><h2>Entre no seu espaço</h2><p>Informe seu usuário e senha para conhecer o portal.</p><form id="demo-login"><label>Usuário<input name="username" required autocomplete="username" placeholder="Seu usuário ou e-mail" maxlength="254"></label><label>Senha<input name="password" type="password" required autocomplete="current-password" placeholder="Digite sua senha" maxlength="128"></label><label style="display:flex;align-items:center;gap:8px;font-size:11px"><input style="width:auto;margin:0" type="checkbox" id="show-password"> Mostrar senha</label><p id="demo-login-error" class="danger" role="alert"></p><button class="button" type="submit">Entrar →</button></form><details style="margin-top:22px;font-size:12px;color:#77866b"><summary style="cursor:pointer">Acessos para testar a demonstração</summary><p>Usuários: <b>superadmin</b>, <b>admin</b> ou <b>paciente</b>.<br>Senha para os três: <b>demo12345</b>.</p></details><p style="font-size:10px">Prévia HTML com credenciais fictícias, sem autenticação real. Não use sua senha pessoal. As alterações são descartadas ao recarregar.</p></div>`;
+ document.body.append(overlay);
+ overlay.querySelector('#show-password').onchange=e=>{overlay.querySelector('[name=password]').type=e.target.checked?'text':'password'};
+ return new Promise(resolve=>{overlay.querySelector('form').onsubmit=e=>{e.preventDefault();const fields=new FormData(e.target);const username=String(fields.get('username')).trim().toLowerCase();const aliases={superadmin:'superadmin',admin:'admin',paciente:'usuario'};const role=aliases[username]||demoUsers.find(u=>u.email===username)?.role;const user=demoUsers.find(u=>u.role===role);if(!user||fields.get('password')!=='demo12345'){overlay.querySelector('#demo-login-error').textContent='Usuário ou senha inválidos.';return;}demoRole=role;location.hash='dashboard';overlay.remove();document.body.classList.remove('logged-out');document.body.classList.add('authenticated');const bar=document.createElement('div');bar.className='demo-banner';bar.innerHTML='<span>Prévia HTML · login demonstrativo · sem autenticação real</span><button type="button">Sair</button>';bar.querySelector('button').onclick=()=>location.reload();document.body.prepend(bar);resolve(user)};});
+}
+
+async function api(path,options={}){
+ const user=demoUsers.find(u=>u.role===demoRole),body=options.body?JSON.parse(options.body):{};
+ if(path==='logout'){location.reload();return {ok:true}}
+ if(path==='password')throw Error('A troca de senha real está disponível na versão com servidor.');
+ if(path==='state'){
+ if(options.method==='PUT'){if(demoRole==='usuario')throw Error('Acesso somente de leitura.');Object.assign(demoData,body.data);demoVersion++;}
+ const snapshot=structuredClone(demoData);
+ if(demoRole==='usuario'){snapshot.patients=snapshot.patients.filter(p=>p.id===user.patientId);snapshot.appointments=snapshot.appointments.filter(a=>a.patient===user.patientId);snapshot.posts=snapshot.posts.filter(p=>p.status==='Publicado');}
+ return {data:snapshot,version:demoVersion};
+ }
+ if(path==='users'){
+ if(demoRole==='usuario')throw Error('Acesso restrito.');
+ if(options.method==='POST'){
+ if(demoRole!=='superadmin')throw Error('Somente o superadmin pode criar usuários.');
+ if(demoUsers.some(u=>u.email===body.email))throw Error('E-mail já cadastrado.');
+ if(body.role==='usuario'&&!demoData.patients.some(p=>p.id===body.patientId))throw Error('Selecione uma ficha de paciente.');
+ demoUsers.push({id:crypto.randomUUID(),name:body.name,email:body.email,role:body.role,patientId:body.role==='usuario'?body.patientId:null,ownerId:'admin',active:true});
+ }
+ if(options.method==='PATCH'){const target=demoUsers.find(u=>u.id===body.id);if(target)target.active=body.active;}
+ return {users:demoUsers.filter(u=>demoRole==='superadmin'||u.ownerId==='admin').map(u=>({...u}))};
+ }
+ throw Error('Recurso disponível na versão com servidor.');
+}
+'''
+app=(root/'public/app.js').read_text().split('\n',1)[1]
+app=app.replace("if(location.port)new EventSource('./events').onmessage=()=>location.reload();",'')
+app=app.replace("$('footer').lastElementChild.textContent='Área de membros · acesso individual';","$('footer').lastElementChild.textContent='Demonstração HTML · dados fictícios';")
+# Helpers stay scoped so both modules can be inlined without duplicate bindings.
+view_wrapper="const {renderMembers,patientPortal}=(()=>{\n"+members[:members.index('export const roleNames')]+views+"\nreturn {renderMembers,patientPortal};})();\n"
+# Seed uses its own date helper before application initialization.
+seed_wrapper="const demoData=(()=>{const today=new Date().toISOString().slice(0,10);\n"+seed+"\nreturn demoData;})();\n"
+css=(root/'public/style.css').read_text()+'.demo-banner{padding:10px 20px;background:#e6eddd;color:#52694b;display:flex;align-items:center;justify-content:center;gap:20px;font-size:11px;position:sticky;top:0;z-index:30}.demo-banner button{background:white;border:1px solid #c9d5bd;border-radius:5px;padding:5px 10px;color:#52694b}.authenticated .sidebar{top:45px}.authenticated .main{padding-top:0}@media(max-width:800px){.demo-banner{font-size:9px;gap:8px}}'
+html=(root/'public/index.html').read_text().replace('<link rel="stylesheet" href="./style.css">','<style>'+css+'</style>').replace('<script type="module" src="./app.js"></script>','<script type="module">'+seed_wrapper+shim+view_wrapper+app+'</script>')
+(root.parent/'nutri-preview.html').write_text(html)
+print('HTML atualizado: /workspace/nutri-preview.html')

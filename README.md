@@ -34,3 +34,7 @@ O GitHub recebe código por commits e push em `main`, nunca contas, senhas ou ba
 ## Validação
 
 `npm test` inicia um servidor isolado e verifica configuração inicial única, login, senha incorreta, isolamento entre admins, vinculação de pacientes, bloqueio de escrita e gestão para pacientes, filtro de rascunhos, prevenção de elevação de privilégios, conflito de gravação, origem das requisições, bloqueio de sessão, troca de senha e logout. O teste não usa o armazenamento da instalação.
+
+## HTML de demonstração
+
+Execute `python3 scripts/build-preview.py` para gerar `../nutri-preview.html` com CSS e JavaScript embutidos. A prévia permite entrar com os usuários fictícios `superadmin`, `admin` e `paciente`, todos com a senha pública de teste `demo12345`. Também aceita os e-mails demonstrativos exibidos nas contas. Esses acessos existem apenas no HTML e não são senhas da instalação real. O arquivo não autentica usuários em um servidor e descarta alterações ao recarregar. No portal real, o campo **Usuário (e-mail)** aceita o e-mail cadastrado e a senha individual.
