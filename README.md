@@ -128,7 +128,7 @@ O Wrangler inicia a aplicação na porta 8787. O estado local fica em `.wrangler
 
 1. Na sua conta Cloudflare, entre em **Workers & Pages** e crie um **Worker** importando este repositório do GitHub.
 2. Use o nome `nutri-portal`, igual ao campo `name` do `wrangler.jsonc` (ou altere ambos em conjunto antes do primeiro deploy).
-3. Configure a instalação/build com `npm ci --include=dev` e o comando de deploy com `npm run cloudflare:deploy`. O diretório raiz é a raiz do repositório.
+3. Configure a instalação/build com `npm ci --include=dev` e o comando de deploy com `npm run cloudflare:deploy`. O diretório raiz é a raiz do repositório. Use Node.js 22 ou superior no build (`.nvmrc` fixa a versão 22).
 4. Revise o plano e as cotas de Workers/Durable Objects no painel e autorize a publicação. O arquivo `wrangler.jsonc` registra os assets, o binding `PORTAL` e a migração SQLite.
 5. Abra o endereço `workers.dev` fornecido pelo painel ou adicione seu domínio próprio. No primeiro acesso real, crie sua conta superadmin. Os acessos dos HTMLs fictícios não são criados na hospedagem real.
 
