@@ -108,3 +108,38 @@ O repositório inclui configurações para as duas opções abaixo. A publicaç�
 **Railway:** crie um projeto a partir deste repositório. O arquivo `railway.toml` define o início e a verificação de saúde. Anexe um volume persistente em `/data` e configure `DATA_DIR=/data/portal`, `NODE_ENV=production`, `COOKIE_SECURE=true`, `HOST=0.0.0.0`. Deixe a plataforma fornecer `PORT`, mantenha uma réplica e gere um domínio público com HTTPS nas configurações do serviço. Revise os custos do serviço e volume no painel. Abra o domínio e crie seu superadmin no primeiro acesso.
 
 O GitHub Pages continua servindo somente a demonstração estática; o endereço da plataforma Node será o portal real. Mantenha o volume e seus backups ao recriar ou trocar a hospedagem.
+
+## Hospedagem escolhida: Cloudflare Workers
+
+O portal real está preparado para **Cloudflare Workers com Static Assets e um Durable Object SQLite**, conforme `wrangler.jsonc`. Não publique a API como um site estático do Cloudflare Pages. A interface e a API ficam no mesmo domínio do Worker, e as regras de usuários/pacientes são compartilhadas com o servidor Node.
+
+Contas, registros, mídia e sessões são persistidos no SQLite do Durable Object `Portal`. O banco é criado pela migração `v1` no primeiro deploy, sem disco local ou IDs manuais de D1/R2. Alterações e autenticação são serializadas e salvas atomicamente. O navegador usa cookie HttpOnly/Secure no HTTPS da Cloudflare. A versão Workers usa PBKDF2-SHA-256 com salt individual; o servidor Node mantém scrypt e seus arquivos atuais.
+
+### Rodar localmente no runtime da Cloudflare
+
+```sh
+npm ci
+npm run cloudflare:dev
+```
+
+O Wrangler inicia a aplicação na porta 8787. O estado local fica em `.wrangler/`, ignorado pelo Git. `COOKIE_SECURE=false` vale apenas para o comando de desenvolvimento local; o deploy mantém `true`. A configuração de Worker não usa `.env`, `DATA_DIR` ou disco de Render/Railway.
+
+### Publicar conectando o GitHub
+
+1. Na sua conta Cloudflare, entre em **Workers & Pages** e crie um **Worker** importando este repositório do GitHub.
+2. Use o nome `nutri-portal`, igual ao campo `name` do `wrangler.jsonc` (ou altere ambos em conjunto antes do primeiro deploy).
+3. Configure a instalação/build com `npm ci --include=dev` e o comando de deploy com `npm run cloudflare:deploy`. O diretório raiz é a raiz do repositório.
+4. Revise o plano e as cotas de Workers/Durable Objects no painel e autorize a publicação. O arquivo `wrangler.jsonc` registra os assets, o binding `PORTAL` e a migração SQLite.
+5. Abra o endereço `workers.dev` fornecido pelo painel ou adicione seu domínio próprio. No primeiro acesso real, crie sua conta superadmin. Os acessos dos HTMLs fictícios não são criados na hospedagem real.
+
+Para publicar pelo seu computador, a alternativa é executar `npx wrangler login` na sua conta e depois `npm run cloudflare:deploy`. Não coloque tokens em código, commits ou chat. `npm run cloudflare:check` empacota e valida sem publicar.
+
+O arquivo `.data/members.json` do Node não é importado automaticamente no banco da Cloudflare. Se houver contas ou registros reais numa instalação Node, planeje uma migração e backup antes de trocar o endereço de produção. Os namespaces e o nome da classe Durable Object devem ser mantidos para reutilizar os dados nos próximos deploys.
+
+### Limites e validação da versão Workers
+
+A mídia continua incorporada no estado, com limite de 5 MB por foto/vídeo. Na Cloudflare, o limite é de **16 MB por gravação do estado completo**, para limitar o consumo de memória do Worker. O armazenamento SQLite divide o snapshot em partes, preservando caracteres Unicode. Para uma base maior, será necessário migrar mídia para armazenamento dedicado e usar operações de banco por registro. Revise limites, backups e requisitos de privacidade antes do uso profissional com dados de saúde.
+
+`npm run test:cloudflare` executa o smoke de API contra `BASE_URL` local. Use um diretório de estado Wrangler temporário e vazio: o script cria contas fictícias. A fase `CHECK_PHASE=persistence` confirma os registros após reiniciar o Wrangler no mesmo diretório, usando um `CHECK_STATE_FILE` temporário. Para incluir o teste de navegador, configure `PLAYWRIGHT_MODULE_PATH` e `BROWSER_PATH`. O script rejeita destinos externos por padrão para não testar uma conta de produção por engano.
+
+Render/Railway e `npm start` permanecem como alternativas de execução Node; a publicação escolhida na Cloudflare usa os comandos `cloudflare:*` acima.

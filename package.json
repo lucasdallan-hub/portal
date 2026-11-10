@@ -8,10 +8,17 @@
     "start": "node server.js",
     "test": "node --test",
     "build:demo": "python3 scripts/build-preview.py",
-    "test:browser": "node scripts/check-browser.mjs"
+    "test:browser": "node scripts/check-browser.mjs",
+    "cloudflare:dev": "wrangler dev --var COOKIE_SECURE:false",
+    "cloudflare:check": "wrangler deploy --dry-run",
+    "cloudflare:deploy": "wrangler deploy",
+    "test:cloudflare": "node scripts/check-cloudflare.mjs"
   },
   "engines": {
     "node": ">=22"
   },
-  "main": "server.js"
+  "main": "server.js",
+  "devDependencies": {
+    "wrangler": "4.160.0"
+  }
 }

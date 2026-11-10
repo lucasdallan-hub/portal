@@ -9,3 +9,6 @@ test-results/
 .data/
 _site/
 __pycache__/
+.wrangler/
+.dev.vars
+.dev.vars.*

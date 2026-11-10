@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nutri-portal",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2025-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/health", "/events"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "PORTAL", "class_name": "Portal" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Portal"] }],
+  "vars": { "COOKIE_SECURE": "true" },
+  "dev": { "port": 8787 }
+}
