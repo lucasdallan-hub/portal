@@ -3,7 +3,15 @@
 Portal em português para acompanhamento nutricional. O servidor usa Node.js 22+ sem dependências npm externas. Python 3 é necessário para gerar a demonstração e executar os testes de geração.
 
 ```sh
-npm run dev
+npm start
+```
+
+A entrada é `server.js`. O comando serve a interface e a API de login, permissões e registros no mesmo processo. Não é necessário instalar pacotes npm. Ao executar no seu computador, abra a porta 3000 no navegador. Nesta nuvem, use o encaminhamento de portas do provedor, quando disponível.
+
+Para configurar, copie `.env.example` para `.env` e ajuste os valores; `npm start` lê esse arquivo automaticamente e preserva as variáveis fornecidas pela hospedagem. A API `GET /health` retorna `{"status":"ok"}` quando o servidor está ativo.
+
+```sh
+npm run dev  # desenvolvimento com reinício do Node e atualização da página
 npm test
 ```
 
@@ -74,3 +82,29 @@ As fichas de pacientes, consultas e conteúdos têm opção de exclusão dentro 
 Com Playwright e Chromium instalados, execute `npm run test:browser`. Se forem fornecidos pelo ambiente fora do projeto, defina `PLAYWRIGHT_MODULE_PATH` para o módulo Playwright e `BROWSER_PATH` para o executável do Chromium. O script usa diretório temporário e testa o servidor real: três perfis, contas, pacientes, consultas, conteúdos, stories de texto/foto/vídeo, reprodução, conflito de gravação e nova tentativa, confirmação de exclusão e tela móvel. Não acessa as contas ou dados da instalação principal.
 
 Erros de formulário são exibidos dentro da janela. Em caso de falha de gravação ou conflito, o formulário obsoleto é fechado e os dados são recarregados; reabra para revisar antes de tentar novamente. A API valida os dados antes de salvar, e uma falha de escrita não mantém mudanças não persistidas na memória. Ao transferir um paciente para outra nutricionista, consultas e vínculos acompanham a transferência, e o paciente precisa entrar novamente.
+
+## Executar o servidor Node
+
+`server.js` é a entrada principal. `scripts/server.mjs` exporta `createPortalServer` e `startServer`, e mantém a execução direta anterior por compatibilidade. O servidor encerra conexões de atualização e o watcher ao receber SIGINT/SIGTERM. Porta inválida ou ocupada produz uma mensagem legível e saída com erro.
+
+| Variável | Padrão | Uso |
+| --- | --- | --- |
+| `PORT` | `3000` | Porta HTTP; normalmente fornecida pela hospedagem. |
+| `HOST` | `0.0.0.0` | Interface em que o servidor escuta. |
+| `DATA_DIR` | `.data` na raiz do projeto | Diretório persistente de contas e registros. |
+| `NODE_ENV` | não definido | Use `production` na hospedagem; desativa o watcher de arquivos. |
+| `COOKIE_SECURE` | `false` | Use `true` quando o acesso público for por HTTPS. |
+
+Para colocar online, conecte o repositório a uma hospedagem que execute Node.js 22 ou superior, use `npm start` como comando de início e `/health` como health check. Aponte `DATA_DIR` para um volume persistente e configure HTTPS. Não use armazenamento efêmero para contas e pacientes. O `Procfile` fornecido declara o processo web para plataformas compatíveis. Não execute várias réplicas: o armazenamento atual usa um arquivo JSON em disco.
+
+No primeiro acesso real, crie seu superadmin. Os acessos `lucasdallan/admin123` dos HTMLs são somente da demonstração e não são criados no servidor. As contas reais são salvas no volume e exigem senha individual de pelo menos 12 caracteres.
+
+## Publicar em uma plataforma
+
+O repositório inclui configurações para as duas opções abaixo. A publicação precisa ser iniciada na sua conta da plataforma conectada ao GitHub; estes arquivos não criam serviços por conta própria.
+
+**Render:** em New → Blueprint, conecte este repositório e revise `render.yaml`. A configuração usa Node 22, `npm start`, HTTPS fornecido pela plataforma e um disco persistente em `/var/data`, com `DATA_DIR=/var/data/portal`. O disco exige plano pago (o arquivo sugere Starter); confirme o plano e o preço no painel antes de criar o serviço. Depois do primeiro deploy, abra o endereço fornecido pelo Render e crie seu superadmin. Alterações posteriores em `main` podem ser implantadas pelo serviço conectado.
+
+**Railway:** crie um projeto a partir deste repositório. O arquivo `railway.toml` define o início e a verificação de saúde. Anexe um volume persistente em `/data` e configure `DATA_DIR=/data/portal`, `NODE_ENV=production`, `COOKIE_SECURE=true`, `HOST=0.0.0.0`. Deixe a plataforma fornecer `PORT`, mantenha uma réplica e gere um domínio público com HTTPS nas configurações do serviço. Revise os custos do serviço e volume no painel. Abra o domínio e crie seu superadmin no primeiro acesso.
+
+O GitHub Pages continua servindo somente a demonstração estática; o endereço da plataforma Node será o portal real. Mantenha o volume e seus backups ao recriar ou trocar a hospedagem.
