@@ -14,7 +14,11 @@ export function createAuth(directory){
  const fail=(status,message)=>{throw Object.assign(Error(message),{status})};
  const own=(user,p)=>user.role==='superadmin'||p.ownerId===user.id;
  function view(user){if(user.role==='superadmin')return structuredClone(db.data);const patients=db.data.patients.filter(p=>user.role==='admin'?own(user,p):p.id===user.patientId&&p.ownerId===user.ownerId);const ids=new Set(patients.map(p=>p.id));return {patients,appointments:db.data.appointments.filter(a=>ids.has(a.patient)),posts:db.data.posts.filter(p=>p.ownerId===(user.role==='admin'?user.id:user.ownerId)&&(user.role==='admin'||p.status==='Publicado')),stories:user.role==='usuario'?[]:db.data.stories.filter(s=>s.ownerId===(user.role==='admin'?user.id:user.ownerId)&&Date.now()-s.created<86400000)}}
- async function body(req){let size=0,parts=[];for await(const part of req){size+=part.length;if(size>32*1024*1024)fail(413,'Requisição muito grande.');parts.push(part)}try{return JSON.parse(Buffer.concat(parts).toString()||'{}')}catch{fail(400,'JSON inválido.')}}
+ async function body(req){let size=0,parts=[];for await(const part of req){size+=part.length;if(size>32*1024*1024)fail(413,'Requisição muito grande.');parts.push(part)}try{const value=JSON.parse(Buffer.concat(parts).toString()||'{}');if(value===null||typeof value!=='object'||Array.isArray(value))fail(400,'Envie um objeto JSON.');return value;}catch(e){if(e.status)throw e;fail(400,'JSON inválido.');}}
+ const idOK=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(value);
+ const numberOK=(value,min,max)=>(typeof value==='number'||typeof value==='string'&&value.trim()!=='')&&Number.isFinite(Number(value))&&Number(value)>=min&&Number(value)<=max;
+ const dateOK=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
+ const textOK=(value,max=10000)=>value===undefined||typeof value==='string'&&value.length<=max;
  const validPassword=p=>typeof p==='string'&&p.length>=12&&p.length<=128;
  const usernameOK=value=>typeof value==='string'&&/^[a-z0-9][a-z0-9._-]{2,31}$/.test(value);
  const normalize=value=>typeof value==='string'?value.trim().toLowerCase():'';
@@ -23,9 +27,11 @@ export function createAuth(directory){
  function session(req){const token=/\bnutri_session=([^;]+)/.exec(req.headers.cookie||'')?.[1];const s=sessions.get(token);if(!s||s.expires<Date.now()){sessions.delete(token);return null}const user=db.users.find(u=>u.id===s.id&&u.active);return user?{user,token}:null}
  function signIn(req,res,u){const token=randomBytes(32).toString('hex');sessions.set(token,{id:u.id,expires:Date.now()+8*3600000});res.setHeader('Set-Cookie',`nutri_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.COOKIE_SECURE==='true'?'; Secure':''}`);return json(res,200,{user:publicUser(u)})}
  return async(req,res,url)=>{
+ let before,previousSessions;
  try{
  if(req.method!=='GET'&&req.headers.origin!==`http://${req.headers.host}`&&req.headers.origin!==`https://${req.headers.host}`)fail(403,'Origem da requisição não permitida.');
  const b=req.method==='GET'?{}:await body(req);
+ if(req.method!=='GET'&&['/api/setup','/api/account','/api/password','/api/state','/api/users','/api/manage'].includes(url.pathname)){before=structuredClone(db);previousSessions=new Map(sessions);}
  if(url.pathname==='/api/session'&&req.method==='GET'){const s=session(req);return json(res,200,{user:s?publicUser(s.user):null,needsSetup:db.users.length===0})}
  if(url.pathname==='/api/setup'&&req.method==='POST'){if(db.users.length)fail(409,'A configuração inicial já foi realizada.');validateUser(b);const u={id:randomUUID(),name:b.name.trim(),email:b.email.toLowerCase().trim(),password:hash(b.password),role:'superadmin',active:true};db.users.push(u);persist();return signIn(req,res,u)}
  if(url.pathname==='/api/login'&&req.method==='POST'){const key=req.socket.remoteAddress;let a=attempts.get(key);if(a&&a.until<Date.now()){attempts.delete(key);a=null}if(a?.count>=10)fail(429,'Muitas tentativas. Aguarde 15 minutos.');if(typeof b.password!=='string'||b.password.length>128)fail(401,'E-mail ou senha inválidos.');const login=normalize(b.username??b.email);const u=db.users.find(u=>(u.email===login||u.username===login)&&u.active);if(!u||!verify(b.password,u.password)){attempts.set(key,{count:(a?.count||0)+1,until:a?.until||Date.now()+900000});fail(401,'E-mail ou senha inválidos.')}attempts.delete(key);return signIn(req,res,u)}
@@ -43,17 +49,23 @@ export function createAuth(directory){
  for(const[token,v]of sessions)if(v.id===u.id&&token!==s.token)sessions.delete(token);
  persist();return json(res,200,{user:publicUser(u)});
  }
- if(url.pathname==='/api/password'&&req.method==='POST'){if(!verify(String(b.currentPassword),u.password))fail(400,'Senha atual incorreta.');if(!validPassword(b.password))fail(400,'Use de 12 a 128 caracteres.');u.password=hash(b.password);for(const [token,v]of sessions)if(v.id===u.id&&token!==s.token)sessions.delete(token);persist();return json(res,200,{ok:true})}
+ if(url.pathname==='/api/password'&&req.method==='POST'){if(typeof b.currentPassword!=='string'||b.currentPassword.length>128||!verify(b.currentPassword,u.password))fail(400,'Senha atual incorreta.');if(!validPassword(b.password))fail(400,'Use de 12 a 128 caracteres.');u.password=hash(b.password);for(const [token,v]of sessions)if(v.id===u.id&&token!==s.token)sessions.delete(token);persist();return json(res,200,{ok:true})}
  if(url.pathname==='/api/state'&&req.method==='GET')return json(res,200,{data:view(u),version:db.version});
  if(url.pathname==='/api/state'&&req.method==='PUT'){
  if(u.role==='usuario')fail(403,'Pacientes possuem acesso de leitura.');if(b.version!==db.version)fail(409,'Os dados foram atualizados em outra sessão. Recarregue a página.');
  const next=b.data;if(!next||!Object.keys(empty()).every(k=>Array.isArray(next[k])&&next[k].length<=5000))fail(400,'Estrutura de dados inválida.');
- const original=view(u);for(const k of Object.keys(empty())){const ids=new Set();for(const row of next[k]){if(!row||typeof row.id!=='string'||! /^[A-Za-z0-9_-]{1,100}$/.test(row.id)||ids.has(row.id))fail(400,'Identificador inválido ou duplicado.');ids.add(row.id);const existing=db.data[k].find(r=>r.id===row.id);if(existing&&!original[k].some(r=>r.id===row.id))fail(403,'Registro de outra nutricionista.');row.ownerId=u.role==='superadmin'?(row.ownerId||existing?.ownerId||u.id):u.id;if(!db.users.some(x=>x.id===row.ownerId&&x.role!=='usuario'))fail(400,'Responsável inválido.');}}
- for(const p of next.patients){if(typeof p.name!=='string'||!p.name.trim()||!Array.isArray(p.history)||!(Number(p.height)>=40&&Number(p.height)<=250)||!(Number(p.weight)>=2&&Number(p.weight)<=500))fail(400,'Ficha de paciente inválida.');}
- for(const a of next.appointments)if(!next.patients.some(p=>p.id===a.patient)||!/^\d{4}-\d{2}-\d{2}$/.test(a.date)||!/^\d{2}:\d{2}$/.test(a.time))fail(400,'Consulta inválida.');
- for(const p of next.posts)if(typeof p.title!=='string'||typeof p.text!=='string'||!['Publicado','Rascunho'].includes(p.status))fail(400,'Conteúdo inválido.');
+ const original=view(u);for(const k of Object.keys(empty())){const ids=new Set();for(const row of next[k]){if(!row||typeof row!=='object'||Array.isArray(row)||!idOK(row.id)||ids.has(row.id))fail(400,'Identificador inválido ou duplicado.');ids.add(row.id);const existing=db.data[k].find(r=>r.id===row.id);if(existing&&!original[k].some(r=>r.id===row.id))fail(403,'Registro de outra nutricionista.');row.ownerId=u.role==='superadmin'?(row.ownerId||existing?.ownerId||u.id):u.id;if(!db.users.some(x=>x.id===row.ownerId&&x.role!=='usuario'))fail(400,'Responsável inválido.');}}
+ for(const p of next.patients){
+ if(typeof p.name!=='string'||!p.name.trim()||p.name.length>100||!Array.isArray(p.history)||p.history.length>1000||!numberOK(p.height,40,250)||!numberOK(p.weight,2,500)||!textOK(p.notes)||!textOK(p.goal,150)||!textOK(p.email,254)||!textOK(p.phone,60))fail(400,'Ficha de paciente inválida.');
+ if(p.target!==undefined&&p.target!==null&&p.target!==''&&p.target!==0&&!numberOK(p.target,2,500))fail(400,'Meta de peso inválida.');
+ p.height=Number(p.height);p.weight=Number(p.weight);
+ const historyIds=new Set();for(const h of p.history){if(!h||typeof h!=='object'||!idOK(h.id)||historyIds.has(h.id)||!dateOK(h.date)||!numberOK(h.weight,2,500)||!textOK(h.notes)||(h.waist!==undefined&&h.waist!==null&&h.waist!==''&&!numberOK(h.waist,10,300)))fail(400,'Registro de evolução inválido.');historyIds.add(h.id);h.weight=Number(h.weight);}
+ }
+
+ for(const a of next.appointments){const p=next.patients.find(p=>p.id===a.patient);if(!p||!dateOK(a.date)||typeof a.time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(a.time)||!textOK(a.type,150)||(a.status!==undefined&&!['Confirmada','Pendente','Concluída','Cancelada'].includes(a.status)))fail(400,'Consulta inválida.');a.ownerId=p.ownerId;}
+ for(const p of next.posts)if(typeof p.title!=='string'||!p.title.trim()||p.title.length>100||typeof p.text!=='string'||p.text.length>20000||!textOK(p.emoji,32)||(p.date!==undefined&&!dateOK(p.date))||!['Publicado','Rascunho'].includes(p.status))fail(400,'Conteúdo inválido.');
  for(const st of next.stories){
- if(typeof st.title!=='string'||typeof st.text!=='string'||!Number.isFinite(st.created))fail(400,'Story inválido.');
+ if(typeof st.title!=='string'||!st.title.trim()||st.title.length>100||typeof st.text!=='string'||st.text.length>10000||!textOK(st.emoji,32)||!Number.isFinite(st.created)||st.created<0||st.created>Date.now()+60000)fail(400,'Story inválido.');
  if(st.appearance){const a=st.appearance;if(!['pink','forest','sunset','berry','ocean','sand','night'].includes(a.background)||!['center','left','right'].includes(a.alignment)||!['white','dark'].includes(a.ink)||!Number.isFinite(a.size)||a.size<18||a.size>48||!Number.isFinite(a.y)||a.y<20||a.y>70)fail(400,'Estilo do story inválido.');}
  if(st.photo&&st.video)fail(400,'Escolha uma foto ou um vídeo por story.');
  if(st.photo){
@@ -71,7 +83,7 @@ export function createAuth(directory){
  }
  // Patient login links must remain valid; deleting linked records is prohibited.
  for(const member of db.users.filter(x=>x.role==='usuario')){const p=db.data.patients.find(p=>p.id===member.patientId);if(p&&original.patients.some(x=>x.id===p.id)&&!next.patients.some(x=>x.id===p.id&&(u.role==='superadmin'||x.ownerId===member.ownerId)))fail(409,'Existe um acesso de paciente vinculado a esta ficha.');}
- for(const k of Object.keys(empty())){db.data[k]=u.role==='superadmin'?next[k]:[...db.data[k].filter(r=>!original[k].some(x=>x.id===r.id)),...next[k]]}for(const m of db.users.filter(x=>x.role==='usuario')){const p=db.data.patients.find(p=>p.id===m.patientId);if(p)m.ownerId=p.ownerId;}db.version++;persist();return json(res,200,{data:view(u),version:db.version})}
+ for(const k of Object.keys(empty())){db.data[k]=u.role==='superadmin'?next[k]:[...db.data[k].filter(r=>!original[k].some(x=>x.id===r.id)),...next[k]]}for(const m of db.users.filter(x=>x.role==='usuario')){const p=db.data.patients.find(p=>p.id===m.patientId);if(p&&m.ownerId!==p.ownerId){m.ownerId=p.ownerId;for(const[token,v]of sessions)if(v.id===m.id)sessions.delete(token);}}db.version++;persist();return json(res,200,{data:view(u),version:db.version})}
  if(url.pathname==='/api/users'){
  if(u.role==='usuario')fail(403,'Acesso restrito à gestão.');
  if(req.method==='GET')return json(res,200,{users:db.users.filter(x=>u.role==='superadmin'||x.ownerId===u.id).map(publicUser)});
@@ -113,13 +125,13 @@ export function createAuth(directory){
  }
  if(url.pathname==='/api/manage'&&req.method==='DELETE'){
  if(u.role!=='superadmin')fail(403,'Exclusão global restrita ao superadmin.');if(b.version!==db.version)fail(409,'Dados alterados em outra sessão. Recarregue.');
- const key={patient:'patients',appointment:'appointments',post:'posts',story:'stories'}[b.resource];if(!key)fail(400,'Recurso inválido.');if(!db.data[key].some(x=>x.id===b.id))fail(404,'Registro não encontrado.');
+ const resourceKeys={patient:'patients',appointment:'appointments',post:'posts',story:'stories'};const key=typeof b.resource==='string'&&Object.hasOwn(resourceKeys,b.resource)?resourceKeys[b.resource]:null;if(!key)fail(400,'Recurso inválido.');if(!db.data[key].some(x=>x.id===b.id))fail(404,'Registro não encontrado.');
  if(key==='patients'){
  const linked=db.users.filter(x=>x.role==='usuario'&&x.patientId===b.id).map(x=>x.id);db.users=db.users.filter(x=>!linked.includes(x.id));for(const[token,v]of sessions)if(linked.includes(v.id))sessions.delete(token);db.data.appointments=db.data.appointments.filter(x=>x.patient!==b.id);
  }
  db.data[key]=db.data[key].filter(x=>x.id!==b.id);db.version++;persist();return json(res,200,{data:view(u),version:db.version,ok:true});
  }
  fail(404,'Operação não encontrada.');
- }catch(e){json(res,e.status||500,{error:e.status?e.message:'Não foi possível concluir a operação.'})}
+ }catch(e){if(before&&!e.status){db=before;sessions.clear();for(const[token,value]of previousSessions)sessions.set(token,value);}if(!res.destroyed&&!res.headersSent)json(res,e.status||500,{error:e.status?e.message:'Não foi possível concluir a operação.'});}
  };
 }

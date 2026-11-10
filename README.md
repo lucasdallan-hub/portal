@@ -1,6 +1,6 @@
 # Nutri — portal com área de membros
 
-Portal em português para acompanhamento nutricional. Node.js 22+, sem dependências externas.
+Portal em português para acompanhamento nutricional. O servidor usa Node.js 22+ sem dependências npm externas. Python 3 é necessário para gerar a demonstração e executar os testes de geração.
 
 ```sh
 npm run dev
@@ -27,17 +27,17 @@ As contas e dados são salvos em `.data/members.json`, ignorado pelo Git. `DATA_
 
 Em produção, use HTTPS e `COOKIE_SECURE=true`. O servidor é destinado a uma única instância: não use múltiplas réplicas escrevendo no mesmo arquivo. Configure banco de dados transacional, backups externos, recuperação de conta, auditoria, consentimento e controles de privacidade antes de usar informações reais de saúde. Esta versão continua sendo de desenvolvimento; utilize dados fictícios.
 
-Os dados antigos do protótipo no localStorage não são importados automaticamente, para não misturar registros sem vínculo de usuário. O HTML independente antigo é apenas um protótipo sem autenticação. A área de membros precisa do servidor Node e não funciona via arquivo HTML ou GitHub Pages. O workflow Pages anterior publica somente arquivos estáticos, sem capacidade de executar a API. Hospede o servidor Node em um provedor compatível para disponibilizar login real.
+Os dados antigos do protótipo no localStorage não são importados automaticamente, para não misturar registros sem vínculo de usuário. O HTML independente antigo é apenas um protótipo sem autenticação. A área de membros precisa do servidor Node e não funciona via arquivo HTML ou GitHub Pages. O workflow Pages gera e publica apenas a demonstração fictícia, que funciona sem API e tem seus próprios acessos públicos de teste. Hospede o servidor Node em um provedor compatível para disponibilizar login real com dados persistentes. A execução do workflow depende de GitHub Pages configurado para GitHub Actions no repositório.
 
 O GitHub recebe código por commits e push em `main`, nunca contas, senhas ou backups. Conteúdos marcados como publicados ficam disponíveis aos pacientes vinculados; não há publicação em redes sociais. Stories duram 24 horas.
 
 ## Validação
 
-`npm test` inicia um servidor isolado e verifica configuração inicial única, login, senha incorreta, isolamento entre admins, vinculação de pacientes, bloqueio de escrita e gestão para pacientes, filtro de rascunhos, prevenção de elevação de privilégios, conflito de gravação, origem das requisições, bloqueio de sessão, troca de senha e logout. O teste não usa o armazenamento da instalação.
+`npm test` usa dados e servidores temporários e verifica configuração inicial única, login, senha incorreta, isolamento entre admins, vinculação de pacientes, bloqueio de escrita e gestão para pacientes, filtro de rascunhos, prevenção de elevação de privilégios, conflito de gravação, origem das requisições, bloqueio de sessão, troca de senha e logout. Os testes não usam o armazenamento da instalação. As regressões cobrem também JSON/datas/horários/históricos inválidos, transferência de responsáveis, revogação de sessões, falha de gravação sem alteração parcial em memória e geração dos HTMLs em uma cópia sem histórico Git.
 
 ## HTML de demonstração
 
-Execute `python3 scripts/build-preview.py` para gerar `../nutri-preview.html` com CSS e JavaScript embutidos. A prévia permite entrar com o superadmin fictício `lucasdallan` com a senha pública de demonstração `admin123`, além dos usuários `admin` e `paciente` com a senha de teste `demo12345`. Também aceita os e-mails demonstrativos exibidos nas contas. Esses acessos existem apenas no HTML e não são senhas da instalação real. O arquivo não autentica usuários em um servidor e descarta alterações ao recarregar. No portal real, o campo **Usuário (e-mail)** aceita o e-mail cadastrado e a senha individual.
+Execute `npm run build:demo` (ou `python3 scripts/build-preview.py`) para gerar os HTMLs de login, superadmin, nutricionista e paciente, além de `../portal-nutri.zip`, com CSS e JavaScript embutidos. Use `python3 scripts/build-preview.py --output-dir pasta` para escolher a saída. Os dados fictícios ficam em `scripts/demo-data.json`; o gerador não depende de Git, de commits antigos ou da rede. A prévia permite entrar com o superadmin fictício `lucasdallan` com a senha pública de demonstração `admin123`, além dos usuários `admin` e `paciente` com a senha de teste `demo12345`. Também aceita os e-mails demonstrativos exibidos nas contas. Esses acessos existem apenas no HTML e não são senhas da instalação real. O arquivo não autentica usuários em um servidor e descarta alterações ao recarregar. No portal real, o campo **Usuário ou e-mail** aceita as credenciais individuais cadastradas.
 
 ## Stories de vídeo
 
@@ -68,3 +68,9 @@ A área do paciente busca os conteúdos publicados pela nutricionista responsáv
 Em **Área de membros**, o superadmin pode criar qualquer perfil, editar nome, usuário, e-mail, perfil e senha de outros membros, bloquear, reativar ou excluir contas. Excluir uma nutricionista preserva seus registros e transfere a responsabilidade ao superadmin que executou a ação. A API impede excluir, bloquear ou rebaixar o último superadmin ativo. Para rebaixar um gestor a paciente, transfira suas fichas e conteúdos antes.
 
 As fichas de pacientes, consultas e conteúdos têm opção de exclusão dentro dos formulários de edição, exclusiva do superadmin, com confirmação. Excluir uma ficha remove também suas consultas e a conta de paciente vinculada, encerrando as sessões dessa conta. O histórico de evolução permite editar e excluir registros. Stories podem ser editados no mesmo editor visual, preservando a mídia existente ou substituindo-a. A exclusão de dados usa controle de versão para evitar apagar sobre mudanças de outra sessão. A demonstração HTML simula esses controles com dados fictícios; o servidor verifica as permissões de fato.
+
+## Teste no navegador
+
+Com Playwright e Chromium instalados, execute `npm run test:browser`. Se forem fornecidos pelo ambiente fora do projeto, defina `PLAYWRIGHT_MODULE_PATH` para o módulo Playwright e `BROWSER_PATH` para o executável do Chromium. O script usa diretório temporário e testa o servidor real: três perfis, contas, pacientes, consultas, conteúdos, stories de texto/foto/vídeo, reprodução, conflito de gravação e nova tentativa, confirmação de exclusão e tela móvel. Não acessa as contas ou dados da instalação principal.
+
+Erros de formulário são exibidos dentro da janela. Em caso de falha de gravação ou conflito, o formulário obsoleto é fechado e os dados são recarregados; reabra para revisar antes de tentar novamente. A API valida os dados antes de salvar, e uma falha de escrita não mantém mudanças não persistidas na memória. Ao transferir um paciente para outra nutricionista, consultas e vínculos acompanham a transferência, e o paciente precisa entrar novamente.

@@ -1,0 +1,118 @@
+{
+  "patients": [
+    {
+      "id": "ana",
+      "name": "Ana Beatriz Silva",
+      "email": "ana@example.com",
+      "phone": "(11) 99999-1001",
+      "goal": "Reeducação alimentar",
+      "height": 165,
+      "weight": 68,
+      "target": 62,
+      "notes": "Priorizar refeições regulares e hidratação.",
+      "history": [],
+      "ownerId": "admin"
+    },
+    {
+      "id": "carlos",
+      "name": "Carlos Eduardo",
+      "email": "carlos@example.com",
+      "phone": "(11) 99999-1002",
+      "goal": "Hipertrofia",
+      "height": 180,
+      "weight": 78,
+      "target": 82,
+      "notes": "Acompanhar distribuição de proteínas ao longo do dia.",
+      "history": [],
+      "ownerId": "admin"
+    },
+    {
+      "id": "mariana",
+      "name": "Mariana Oliveira",
+      "email": "mariana@example.com",
+      "phone": "(11) 99999-1003",
+      "goal": "Saúde e bem-estar",
+      "height": 168,
+      "weight": 65,
+      "target": 63,
+      "notes": "Trabalhar uma relação positiva com a alimentação.",
+      "history": [],
+      "ownerId": "admin"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "a1",
+      "patient": "ana",
+      "date": "__TODAY__",
+      "time": "09:00",
+      "type": "Consulta de retorno",
+      "status": "Confirmada",
+      "ownerId": "admin"
+    },
+    {
+      "id": "a2",
+      "patient": "carlos",
+      "date": "__TODAY__",
+      "time": "10:30",
+      "type": "Primeira consulta",
+      "status": "Confirmada",
+      "ownerId": "admin"
+    },
+    {
+      "id": "a3",
+      "patient": "mariana",
+      "date": "__TODAY__",
+      "time": "14:00",
+      "type": "Consulta de retorno",
+      "status": "Pendente",
+      "ownerId": "admin"
+    }
+  ],
+  "posts": [
+    {
+      "id": "p1",
+      "title": "Um prato colorido, uma vida mais leve",
+      "text": "Variedade no prato é um convite para descobrir sabores. Inclua vegetais de cores diferentes nas suas refeições e respeite os sinais do seu corpo.",
+      "emoji": "🥗",
+      "date": "__TODAY__",
+      "status": "Publicado",
+      "ownerId": "admin"
+    },
+    {
+      "id": "p2",
+      "title": "Pequenos hábitos, grandes mudanças",
+      "text": "Leve sua garrafa de água, planeje um lanche e reserve um tempo para comer com calma. Qual pequeno cuidado você escolhe hoje?",
+      "emoji": "🥑",
+      "date": "__TODAY__",
+      "status": "Rascunho",
+      "ownerId": "admin"
+    }
+  ],
+  "stories": [
+    {
+      "id": "s1",
+      "title": "Bom dia!",
+      "text": "Um novo dia para cuidar de você. Comece com um café da manhã que te faça bem. ☀️",
+      "emoji": "🍵",
+      "created": "__NOW__",
+      "ownerId": "admin"
+    },
+    {
+      "id": "s2",
+      "title": "Na cozinha",
+      "text": "Comida de verdade, feita com carinho. Qual sua receita favorita?",
+      "emoji": "🥑",
+      "created": "__NOW__",
+      "ownerId": "admin"
+    },
+    {
+      "id": "s3",
+      "title": "Dica do dia",
+      "text": "Faça uma pausa. Beba água. Respire. Seu bem-estar também está nos detalhes.",
+      "emoji": "🌿",
+      "created": "__NOW__",
+      "ownerId": "admin"
+    }
+  ]
+}

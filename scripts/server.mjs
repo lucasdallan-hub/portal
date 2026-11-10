@@ -8,7 +8,7 @@ const clients=new Set();
 watch(root,{recursive:true},()=>{for(const res of clients) res.write('data: update\n\n')});
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};
 http.createServer((req,res)=>{
- const url=new URL(req.url,'http://localhost');
+ let url;try{url=new URL(req.url,'http://localhost');}catch{res.writeHead(400).end('URL inválida');return;}
  res.setHeader('X-Content-Type-Options','nosniff');
  res.setHeader('Referrer-Policy','same-origin');
  res.setHeader('X-Frame-Options','DENY');

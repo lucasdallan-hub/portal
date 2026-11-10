@@ -1,4 +1,4 @@
-name: Publicar portal
+name: Publicar demonstração do portal
 on:
   push:
     branches: [main]
@@ -18,10 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: npm test
+      # Pages cannot execute the Node API. Publish only the explicitly fictional demo.
+      - run: |
+          python3 scripts/build-preview.py --output-dir _site
+          cp _site/nutri-preview.html _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: _site
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4
