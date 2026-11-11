@@ -18,6 +18,7 @@ async function api(path,options={}){
  const user=demoUsers.find(u=>u.id===demoUserId),body=options.body?JSON.parse(options.body):{};
  if(!user||!user.active)throw Error('Acesso encerrado. Reabra a demonstração.');
  if(path==='logout'){location.reload();return {ok:true}}
+ if(path==='whatsapp'){if(user.role==='usuario')throw Error('Acesso restrito.');if(options.method==='POST')throw Error('Demonstração: nenhum envio real é feito pelo HTML.');return {provider:'dallanspace',configured:false,templateConfigured:false,webhookConfigured:false,messages:[]};}
  if(path==='account'){
  if(body.currentPassword!==demoPasswords[user.id])throw Error('Senha atual incorreta.');
  const username=String(body.username||'').trim().toLowerCase(),email=String(body.email||'').trim().toLowerCase();

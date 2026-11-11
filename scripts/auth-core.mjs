@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { handleWhatsApp, pendingWhatsAppProvider } from './whatsapp-service.mjs';
 
 const randomHex=bytes=>Buffer.from(crypto.getRandomValues(new Uint8Array(bytes))).toString('hex');
 const randomUUID=()=>crypto.randomUUID();
@@ -14,6 +15,7 @@ export function createAuthCore({
  initialSessions=[],
  initialAttempts=[],
  cookieSecure=false,
+ whatsappProvider=pendingWhatsAppProvider,
 }={}){
  if(typeof commit!=='function'||typeof hash!=='function'||typeof verify!=='function')throw new TypeError('Auth requires commit, hash and verify adapters.');
  let db=structuredClone(initialState);
@@ -41,11 +43,15 @@ export function createAuthCore({
  try{
  if(req.method!=='GET'&&req.headers.origin!==`http://${req.headers.host}`&&req.headers.origin!==`https://${req.headers.host}`)fail(403,'Origem da requisição não permitida.');
  const b=req.method==='GET'?{}:await body(req);
- if(persistSessions||req.method!=='GET'&&['/api/setup','/api/account','/api/password','/api/state','/api/users','/api/manage'].includes(url.pathname)){before=structuredClone(db);previousSessions=new Map(sessions);previousAttempts=new Map(attempts);}
+ if(persistSessions||req.method!=='GET'&&['/api/setup','/api/account','/api/password','/api/state','/api/users','/api/manage','/api/whatsapp'].includes(url.pathname)){before=structuredClone(db);previousSessions=new Map(sessions);previousAttempts=new Map(attempts);}
  if(url.pathname==='/api/session'&&req.method==='GET'){const s=session(req);return json(res,200,{user:s?publicUser(s.user):null,needsSetup:db.users.length===0})}
  if(url.pathname==='/api/setup'&&req.method==='POST'){if(db.users.length)fail(409,'A configuração inicial já foi realizada.');validateUser(b);const u={id:randomUUID(),name:b.name.trim(),email:b.email.toLowerCase().trim(),password:await hash(b.password),role:'superadmin',active:true};db.users.push(u);if(!persistSessions)persist();return signIn(req,res,u)}
  if(url.pathname==='/api/login'&&req.method==='POST'){const key=req.socket.remoteAddress;let a=attempts.get(key);if(a&&a.until<Date.now()){attempts.delete(key);a=null}if(a?.count>=10)fail(429,'Muitas tentativas. Aguarde 15 minutos.');if(typeof b.password!=='string'||b.password.length>128)fail(401,'E-mail ou senha inválidos.');const login=normalize(b.username??b.email);const u=db.users.find(u=>(u.email===login||u.username===login)&&u.active);if(!u||!(await verify(b.password,u.password))){attempts.set(key,{count:(a?.count||0)+1,until:a?.until||Date.now()+900000});persistAuthentication();fail(401,'E-mail ou senha inválidos.')}attempts.delete(key);return signIn(req,res,u)}
  const s=session(req);if(!s)fail(401,'Entre na sua conta para continuar.');const u=s.user;
+ if(url.pathname==='/api/whatsapp'){
+ const result=await handleWhatsApp({method:req.method,body:b,db,user:u,provider:whatsappProvider,commit:persist,checkpoint(){before=structuredClone(db);previousSessions=new Map(sessions);previousAttempts=new Map(attempts);}});
+ return json(res,200,result);
+ }
  if(url.pathname==='/api/logout'&&req.method==='POST'){sessions.delete(s.token);persistAuthentication();res.setHeader('Set-Cookie','nutri_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true})}
  if(url.pathname==='/api/account'&&req.method==='PATCH'){
  if(typeof b.currentPassword!=='string'||b.currentPassword.length>128||!(await verify(b.currentPassword,u.password)))fail(400,'Senha atual incorreta.');
@@ -68,6 +74,11 @@ export function createAuthCore({
  for(const p of next.patients){
  if(typeof p.name!=='string'||!p.name.trim()||p.name.length>100||!Array.isArray(p.history)||p.history.length>1000||!numberOK(p.height,40,250)||!numberOK(p.weight,2,500)||!textOK(p.notes)||!textOK(p.goal,150)||!textOK(p.email,254)||!textOK(p.phone,60))fail(400,'Ficha de paciente inválida.');
  if(p.target!==undefined&&p.target!==null&&p.target!==''&&p.target!==0&&!numberOK(p.target,2,500))fail(400,'Meta de peso inválida.');
+ if(p.whatsappConsent!==undefined&&typeof p.whatsappConsent!=='boolean')fail(400,'A autorização de WhatsApp deve ser verdadeira ou falsa.');
+ const previous=db.data.patients.find(x=>x.id===p.id);
+ p.whatsappConsent=p.whatsappConsent===true;
+ p.whatsappConsentAt=p.whatsappConsent?(previous?.whatsappConsent&&Number.isFinite(previous.whatsappConsentAt)?previous.whatsappConsentAt:Date.now()):null;
+ p.whatsappConsentBy=p.whatsappConsent?(previous?.whatsappConsent&&previous.whatsappConsentBy?previous.whatsappConsentBy:u.id):null;
  p.height=Number(p.height);p.weight=Number(p.weight);
  const historyIds=new Set();for(const h of p.history){if(!h||typeof h!=='object'||!idOK(h.id)||historyIds.has(h.id)||!dateOK(h.date)||!numberOK(h.weight,2,500)||!textOK(h.notes)||(h.waist!==undefined&&h.waist!==null&&h.waist!==''&&!numberOK(h.waist,10,300)))fail(400,'Registro de evolução inválido.');historyIds.add(h.id);h.weight=Number(h.weight);}
  }

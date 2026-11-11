@@ -143,3 +143,13 @@ A mídia continua incorporada no estado, com limite de 5 MB por foto/vídeo. Na 
 `npm run test:cloudflare` executa o smoke de API contra `BASE_URL` local. Use um diretório de estado Wrangler temporário e vazio: o script cria contas fictícias. A fase `CHECK_PHASE=persistence` confirma os registros após reiniciar o Wrangler no mesmo diretório, usando um `CHECK_STATE_FILE` temporário. Para incluir o teste de navegador, configure `PLAYWRIGHT_MODULE_PATH` e `BROWSER_PATH`. O script rejeita destinos externos por padrão para não testar uma conta de produção por engano.
 
 Render/Railway e `npm start` permanecem como alternativas de execução Node; a publicação escolhida na Cloudflare usa os comandos `cloudflare:*` acima.
+
+## WhatsApp — integração em preparação
+
+O provedor informado é `https://api.dallanspace.com.br/api`. A aba **WhatsApp** e os botões na ficha e na consulta estão preparados, com revisão manual da mensagem, telefone e autorização do paciente. Administradores só podem acessar seus próprios pacientes; pacientes não têm acesso à gestão de mensagens.
+
+**O envio Dallanspace ainda não está conectado:** é necessário confirmar na documentação o endpoint, a autenticação, a identificação da instância/número e os eventos de entrega. Não foram inventados endpoints nem feitas tentativas de envio. O servidor devolve `configured: false`, e a interface bloqueia o envio enquanto o adaptador não estiver disponível. Não coloque tokens ou senhas no código, no Git ou no chat.
+
+A orquestração compartilhada (`scripts/whatsapp-service.mjs`) permite conectar um adaptador verificado posteriormente tanto no Node quanto na Cloudflare. Ela exige autorização registrada na ficha, limita solicitações, evita repetir a mesma solicitação durante 60 segundos e registra a intenção antes do envio. Um retorno aceito pelo provedor é exibido como **Aceita**, sem prometer entrega. Timeout ou resposta ambígua fica como **Resultado não confirmado**, sem repetição automática. O histórico guarda metadados da solicitação, sem copiar o texto da mensagem. A conexão com webhook e os status Entregue/Lida dependem da documentação do provedor.
+
+A autorização de WhatsApp é salva na ficha com data e responsável. Telefones brasileiros com DDD de 10/11 dígitos recebem o prefixo 55; para outros países, informe o número internacional com `+`. O HTML independente permanece demonstrativo e não envia mensagens.
